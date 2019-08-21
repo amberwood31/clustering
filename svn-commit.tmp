@@ -1,0 +1,12 @@
+An extremely ugly, but somehow working copy
+--This line, and those below, will be ignored--
+
+M    include/slam/NonlinearSolver_Lambda.h
+A    include/slam_predicting_OFC
+A    include/slam_predicting_OFC/Main.h
+M    src/CMakeLists.txt
+M    src/slam_app/Main.cpp
+A    src/slam_predicting_OFC
+A    src/slam_predicting_OFC/CMakeLists.txt
+A    src/slam_predicting_OFC/Main.cpp
+M    src/slam_simple_example/Main.cpp
