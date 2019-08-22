@@ -25,19 +25,6 @@
 */ // TODO_LOCAL figure out how to integrate utilite library
 
 
-/**
- *	@brief a helper function that adds a bunch of edges
- *
- *	@tparam CSystemType is type of the system, which is defined inside main()
- *
- *	@param[out] system is system to add the edges to
- *	@param[in] information is the information matrix for the edges
- *
- *	@note The data are taken from Olson's Manhattan dataset.
- */
-template <class CSystemType>
-void Add_More_ManhattanEdges(CSystemType &system, Eigen::Matrix3d information);
-
 std::string uReplaceChar(const std::string & str, char before, char after);
 double uStr2Double(const std::string & str);
 std::list<std::string> uSplit(const std::string & str, char separator = ' ');
@@ -103,6 +90,9 @@ typedef CLinearSolver_UberBlock<CSystemType::_TyHessianMatrixBlockList> CLinearS
 
 template <class CSystemType>
 bool load_graph(const std::string &fileName, CSystemType &system);
+
+template<class CSystemType, class CEdgeType>
+bool load_outlier(FILE * file_pointer, CSystemType &system, CEdgeType &new_edge, Eigen::MatrixXd &information, int &vertex_from, int &vertex_to);
 
 
 #endif //SLAM_PLUS_PLUS_MAIN_H

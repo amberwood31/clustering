@@ -7205,6 +7205,37 @@ public:
 
 		return false;
 	}
+
+    /**
+     *	@brief diagonals of the marginals of a specific pose to a matrix
+     *	@param[in] cov_matrix to store the diagonals of the marginals
+     *	@return Returns true on success, false on failure.
+     *	@note This does not do any checking whether the matrix is up to date.
+     */
+    bool save_Diagonal(Eigen::MatrixXd &cov_matrix, int pose_index) const
+    {
+        const CUberBlockMatrix &r_marginals = r_SparseMatrix();
+
+
+        size_t n_order = r_marginals.n_BlockColumn_Base(pose_index);
+        size_t n_dimension = r_marginals.n_BlockColumn_Column_Num(pose_index);
+        // get col
+
+        CUberBlockMatrix::_TyConstMatrixXdRef block =
+            r_marginals.t_FindBlock(n_order, n_order);
+        // get block
+
+        _ASSERTE(block.rows() == block.cols() && block.cols() == n_dimension);
+        cov_matrix = block;
+
+        return true;
+
+
+    }
+
+
+
+
 };
 
 /** @} */ // end of group
