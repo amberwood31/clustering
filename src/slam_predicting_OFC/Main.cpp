@@ -50,6 +50,18 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
             fprintf(stderr, "error: can't open input file \'%s\'\n", t_cmd_args.p_s_input_file);
             return -1;
         }
+        if((p_fr = fopen(t_cmd_args.p_s_inlier_file, "rb")))
+            fclose(p_fr);
+        else {
+            fprintf(stderr, "error: can't open inlier file \'%s\'\n", t_cmd_args.p_s_inlier_file);
+            return -1;
+        }
+        if((p_fr = fopen(t_cmd_args.p_s_outlier_file, "rb")))
+            fclose(p_fr);
+        else {
+            fprintf(stderr, "error: can't open outlier file \'%s\'\n", t_cmd_args.p_s_outlier_file);
+            return -1;
+        }
     }
     // see if the input is there; otherwise will get some misleading errors about peek-parsing
     // and potentially about SE(2) (or other default solver) being disabled (if unlucky)
@@ -70,10 +82,10 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 
     CNonlinearSolver_Lambda<CSystemType, CLinearSolverType> solver(system, t_incremental_config, t_marginals_config);
 
-    std::string file_path = "/home/amber/pose_dataset/vertigo/manhattan/originalDataset/Olson/manhattanOlson3500.g2o";
+    std::string file_path = "/home/amber/SLAM_plus_plus_v2.30/slam/data/manhattan_odometry.g2o";
     if(t_cmd_args.b_verbose)
         fprintf(stderr, "Loading graph\n");
-    load_graph(file_path, system);
+    load_graph(t_cmd_args.p_s_input_file, system);
     system.Plot2D("resultUnoptim.tga", plot_quality::plot_Printing); // plot in print quality
 
     if(t_cmd_args.b_verbose)
@@ -85,47 +97,40 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     system.Plot2D("result.tga", plot_quality::plot_Printing); // plot in print quality
 
     std::string outlier_file = "/home/amber/SLAM_plus_plus_v2.30/slam/data/outlier.g2o";
-
-
     FILE * file = 0;
-    file = fopen(outlier_file.c_str(), "r");
-    CEdgePose2D new_edge;
-    Eigen::MatrixXd information(3,3);
+    file = fopen(t_cmd_args.p_s_outlier_file, "r");
+
+    const char *save_file_name = "outlier_analysis.txt";
+    FILE * save_file = fopen(save_file_name, "w");
+
     if(file){
-        int idfrom, idto;
-        load_outlier(file, system, new_edge, information, idfrom, idto);
-        Eigen::Matrix3d r_t_jacobian0, r_t_jacobian1, cov_inv;
-        Eigen::Vector3d r_v_expectation, r_v_error;
-        new_edge.Calculate_Jacobians_Expectation_Error(r_t_jacobian0, r_t_jacobian1, r_v_expectation,r_v_error);
-        // optimize the system
 
-        Eigen::MatrixXd joined_matrix(3,6);
-        joined_matrix << - r_t_jacobian0, - r_t_jacobian1;
-        Eigen::MatrixXd marginal_covariance(6,6);
-        Eigen::Matrix3d zero_block;
-        zero_block <<   0.0, 0.0, 0.0,
-                        0.0, 0.0, 0.0,
-                        0.0, 0.0, 0.0;
-        Eigen::MatrixXd covariance_idfrom(3,3), covariance_idto(3,3);
-        solver.r_MarginalCovariance().save_Diagonal(covariance_idfrom, idfrom);
-        solver.r_MarginalCovariance().save_Diagonal(covariance_idto, idto);
-        marginal_covariance << covariance_idfrom, zero_block, zero_block, covariance_idto;
-        std::cout << "marginal covariance of the new edge: " << std::endl;
-        std::cout << marginal_covariance << std::endl;
-        cov_inv = (joined_matrix* marginal_covariance * joined_matrix.transpose() + information).inverse();
-
-        double del_obj_function = r_v_error.dot(cov_inv * r_v_error);
-        if(t_cmd_args.b_verbose)
-            fprintf(stderr, "test super complicated matrix operation: %f \n", del_obj_function);
+        analyze_edge_set(file, system, solver, 1, save_file);
 
     }// load one outlier and predict the objective function change
     fclose(file);
+    fclose(save_file);
+
+    std::string inlier_file = "/home/amber/SLAM_plus_plus_v2.30/slam/data/inlier.g2o";
+    file = 0;
+    file = fopen(t_cmd_args.p_s_inlier_file, "r");
+
+    save_file_name = "inlier_analysis.txt";
+    save_file = fopen(save_file_name, "w");
+    if(file){
+
+        analyze_edge_set(file, system, solver, 0, save_file);
+
+    }// load one outlier and predict the objective function change
+    fclose(file);
+    fclose(save_file);
 
 
     solver.Dump(); // show some stats
 
     return 0;
 }
+
 
 
 void TCommandLineArgs::Defaults()
@@ -153,6 +158,8 @@ void TCommandLineArgs::Defaults()
     b_use_SE3 = false; // note this is not overriden in commandline but detected in peek-parsing
 
     p_s_input_file = 0; /** <@brief path to the data file */
+    p_s_inlier_file = 0; /** <@brief path to the inlier file */
+    p_s_outlier_file = 0; /** <@brief path to the outlier file */
     n_max_lines_to_process = 0; /** <@brief maximal number of lines to process */
 
     n_linear_solve_each_n_steps = 0; /**< @brief linear solve period, in steps (0 means disabled) */
@@ -244,10 +251,10 @@ void PrintHelp()
 }
 
 template <class CSystemType>
-bool load_graph(const std::string &fileName, CSystemType &system){
+bool load_graph(const char *fileName, CSystemType &system){
 
     FILE * file = 0;
-    file = fopen(fileName.c_str(), "r");
+    file = fopen(fileName, "r");
 
     if(file)
     {
@@ -300,7 +307,7 @@ bool load_graph(const std::string &fileName, CSystemType &system){
             }
             else if(strList.size())
             {
-                fprintf(stderr, "Error parsing graph file %s on line \"%s\" (strList.size()=%d)", fileName.c_str(), line, (int)strList.size());
+                fprintf(stderr, "Error parsing graph file %s on line \"%s\" (strList.size()=%d)", fileName, line, (int)strList.size());
             }
         }
 
@@ -308,12 +315,41 @@ bool load_graph(const std::string &fileName, CSystemType &system){
     }
     else
     {
-        fprintf(stderr, "Cannot open file %s", fileName.c_str());
+        fprintf(stderr, "Cannot open file %s", fileName);
         return false;
     }
     return true;
 
 }
+
+template<class CEdgeType, class CSolverType>
+double calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverType const & solver, int vertex_from, int vertex_to)
+{
+    Eigen::Matrix3d r_t_jacobian0, r_t_jacobian1, cov_inv;
+    Eigen::Vector3d r_v_expectation, r_v_error;
+    new_edge.Calculate_Jacobians_Expectation_Error(r_t_jacobian0, r_t_jacobian1, r_v_expectation,r_v_error);
+    // optimize the system
+
+    Eigen::MatrixXd joined_matrix(3,6);
+    joined_matrix << - r_t_jacobian0, - r_t_jacobian1;
+    Eigen::MatrixXd marginal_covariance(6,6);
+    Eigen::Matrix3d zero_block, identity_block;
+    zero_block <<   0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0;
+    Eigen::MatrixXd covariance_idfrom(3,3), covariance_idto(3,3);
+    solver.r_MarginalCovariance().save_Diagonal(covariance_idfrom, vertex_from);
+    solver.r_MarginalCovariance().save_Diagonal(covariance_idto, vertex_to); // TODO_LOCAL: whether necessary to zero the off-diagonal
+    marginal_covariance << covariance_idfrom, zero_block, zero_block, covariance_idto;
+    cov_inv = (joined_matrix* marginal_covariance * joined_matrix.transpose() + information).inverse();
+
+    double del_obj_function = r_v_error.dot(cov_inv * r_v_error);
+
+    return del_obj_function;
+
+
+}
+
 
 /**
  * Split a string into multiple string around the specified separator.
@@ -383,11 +419,11 @@ double uStr2Double(const std::string & str)
     return value;
 }
 
-template<class CSystemType, class CEdgeType>
-bool load_outlier(FILE * file_pointer, CSystemType &system, CEdgeType &new_edge, Eigen::MatrixXd &information, int &vertex_from, int &vertex_to) {
+template<class CSystemType, class CSolverType>
+bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType const & solver, int edge_nature, FILE * save_file) {
 
     char line[400];
-    if ( fgets (line , 400 , file_pointer) != NULL )
+    while ( fgets (line , 400 , file_pointer) != NULL )
     {
         std::vector<std::string> strList = uListToVector(uSplit(uReplaceChar(line, '\n', ' '), ' '));
         if(strList.size() == 30)
@@ -410,19 +446,26 @@ bool load_outlier(FILE * file_pointer, CSystemType &system, CEdgeType &new_edge,
         else if(strList.size() == 12)
         {
             //EDGE_SE2
-            vertex_from = atoi(strList[1].c_str());
-            vertex_to = atoi(strList[2].c_str());
-            float x = uStr2Double(strList[3]);
-            float y = uStr2Double(strList[4]);
-            float rot = uStr2Double(strList[5]);
+            int vertex_from = atoi(strList[1].c_str());
+            int vertex_to = atoi(strList[2].c_str());
+            double x = uStr2Double(strList[3]);
+            double y = uStr2Double(strList[4]);
+            double rot = uStr2Double(strList[5]);
 
-
+            Eigen::MatrixXd information(3,3);
             information << uStr2Double(strList[6]), uStr2Double(strList[7]), uStr2Double(strList[8]),
                 uStr2Double(strList[7]), uStr2Double(strList[9]), uStr2Double(strList[10]),
                 uStr2Double(strList[8]), uStr2Double(strList[10]), uStr2Double(strList[11]);
 
+            CEdgePose2D new_edge;
             new_edge = CEdgePose2D(vertex_from, vertex_to, Eigen::Vector3d(x, y, rot), information, system);
             system.r_Add_Edge(new_edge);
+            double delta_obj = calculate_ofc(new_edge, information, solver, vertex_from, vertex_to);
+            fprintf(save_file, "%f\n", delta_obj);
+            if (edge_nature == 1)
+                std::cout << "OFC due to outlier: " << delta_obj << std::endl;
+            else if (edge_nature == 0)
+                std::cout << "OFC due to inlier: " << delta_obj << std::endl;
         }
         else if(strList.size())
         {
@@ -432,6 +475,10 @@ bool load_outlier(FILE * file_pointer, CSystemType &system, CEdgeType &new_edge,
 
 
 }
+
+
+
+
 
 bool TCommandLineArgs::Parse(int n_arg_num, const char **p_arg_list)
 {
@@ -488,6 +535,10 @@ bool TCommandLineArgs::Parse(int n_arg_num, const char **p_arg_list)
             return false;
         } else if(!strcmp(p_arg_list[i], "--infile") || !strcmp(p_arg_list[i], "-i"))
             p_s_input_file = p_arg_list[++ i];
+        else if(!strcmp(p_arg_list[i], "-in"))
+            p_s_inlier_file = p_arg_list[++ i];
+        else if(!strcmp(p_arg_list[i], "-ou"))
+            p_s_outlier_file = p_arg_list[++ i];
         else if(!strcmp(p_arg_list[i], "--parse-lines-limit") || !strcmp(p_arg_list[i], "-pll"))
             n_max_lines_to_process = atol(p_arg_list[++ i]);
         else if(!strcmp(p_arg_list[i], "--linear-solve-period") || !strcmp(p_arg_list[i], "-lsp"))

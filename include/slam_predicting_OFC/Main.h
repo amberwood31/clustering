@@ -51,6 +51,8 @@ struct TCommandLineArgs {
     bool b_use_old_system; /**< @brief old system flag (deprecated) */
     bool b_pose_only; /**< @brief optimize pose-only problems */bool b_use_SE3; /**< @brief process SE3 system @note This is not overriden in commandline but detected in peek-parsing. */
     const char *p_s_input_file; /**< @brief path to the data file */
+    const char *p_s_inlier_file; /**< @brief path to the inlier file */
+    const char *p_s_outlier_file; /**< @brief path to the outlier file */
     int n_max_lines_to_process; /**< @brief maximal number of lines to process */
     size_t n_linear_solve_each_n_steps; /**< @brief linear solve period, in steps (0 means disabled) */
     size_t n_nonlinear_solve_each_n_steps; /**< @brief nonlinear solve period, in steps (0 means disabled) */
@@ -89,10 +91,12 @@ typedef CFlatSystem<CVertexPose2D, TVertexTypelist, CEdgePose2D, TEdgeTypelist> 
 typedef CLinearSolver_UberBlock<CSystemType::_TyHessianMatrixBlockList> CLinearSolverType;
 
 template <class CSystemType>
-bool load_graph(const std::string &fileName, CSystemType &system);
+bool load_graph(const char *fileName, CSystemType &system);
 
-template<class CSystemType, class CEdgeType>
-bool load_outlier(FILE * file_pointer, CSystemType &system, CEdgeType &new_edge, Eigen::MatrixXd &information, int &vertex_from, int &vertex_to);
+template<class CSystemType, class CSolverType>
+bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType const & solver, int edge_nature, FILE * save_file);
 
+template<class CEdgeType, class CSolverType>
+double calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverType const & solver, int vertex_from, int vertex_to);
 
 #endif //SLAM_PLUS_PLUS_MAIN_H
