@@ -467,6 +467,104 @@ public:
 		// mark the system matrix as dirty, to force relinearization in the next step
 	}
 
+
+    /**
+     *	@brief only call after Optimize()
+     *
+     */
+
+	double get_residual_chi2_error() //TODO_LOCAL: what covariance matrix to use
+    {
+        return m_v_dx.norm();
+
+    }
+
+    /**
+     *	@brief don't optimize, just get the initial error after adding new edge to the system
+     *
+     */
+
+    double get_initial_chi2_error(size_t n_max_iteration_num = 5, double f_min_dx_norm = .01)
+    //TODO_LOCAL: what covariance matrix to use? and check the implementation
+    {
+        CTimerSampler timer(this->m_timer);
+
+        const size_t n_variables_size = this->m_r_system.n_VertexElement_Num();
+        const size_t n_measurements_size = this->m_r_system.n_EdgeElement_Num();
+        if(n_variables_size > n_measurements_size) {
+            if(n_measurements_size)
+                fprintf(stderr, "warning: the system is underspecified\n");
+            else
+                fprintf(stderr, "warning: the system contains no edges at all: nothing to optimize\n");
+            //return;
+        }
+        if(!n_measurements_size)
+            return -1; // nothing to solve (but no results need to be generated so it's ok)
+        // can't solve in such conditions
+
+        _ASSERTE(this->m_r_system.b_AllVertices_Covered());
+        // if not all vertices are covered then the system matrix will be rank deficient and this will fail
+        // this triggers typically if solving BA problems with incremental solve each N steps (the "proper"
+        // way is to use CONSISTENCY_MARKER and incremental solve period of SIZE_MAX).
+
+        _TyLambdaOps::Extend_Lambda(this->m_r_system, m_reduction_plan,
+                                    m_lambda, m_n_verts_in_lambda, m_n_edges_in_lambda); // recalculated all the jacobians inside Extend_Lambda()
+        if(!m_b_system_dirty) {
+            _TyLambdaOps::Refresh_Lambda(this->m_r_system, m_reduction_plan, m_lambda,
+                                         m_n_verts_in_lambda, m_n_edges_in_lambda); // calculate only for new edges // t_odo - but how to mark affected vertices?
+        } else
+            _TyLambdaOps::Refresh_Lambda(this->m_r_system, m_reduction_plan, m_lambda); // calculate for entire system
+        m_b_system_dirty = false;
+        m_n_verts_in_lambda = this->m_r_system.r_Vertex_Pool().n_Size();
+        m_n_edges_in_lambda = this->m_r_system.r_Edge_Pool().n_Size(); // right? // yes.
+        // need to have lambda
+
+        if(m_lambda.n_BlockColumn_Num() < this->m_r_system.r_Vertex_Pool().n_Size()) {
+            timer.Accum_DiffSample(m_f_lambda_time);
+            fprintf(stderr, "warning: waiting for more edges\n");
+            return -1;
+        }
+        // waiting for more edges
+
+        _ASSERTE(m_lambda.n_Row_Num() == m_lambda.n_Column_Num() &&
+                 m_lambda.n_BlockColumn_Num() == this->m_r_system.r_Vertex_Pool().n_Size() &&
+                 m_lambda.n_Column_Num() == n_variables_size); // lambda is square, blocks on either side = number of vertices
+        // invariants
+
+
+        m_v_dx.resize(n_variables_size, 1);
+
+        if(this->m_b_use_schur)
+            this->m_schur_solver.SymbolicDecomposition_Blocky(m_lambda/*, true*/); // the DL solver is forcing guided ordering, force it as well for comparisons
+        // calculate the ordering once, it does not change
+
+        if(this->m_b_verbose) {
+            size_t n_sys_size = this->m_r_system.n_Allocation_Size();
+            size_t n_rp_size = m_reduction_plan.n_Allocation_Size();
+            size_t n_lam_size = m_lambda.n_Allocation_Size();
+            printf("memory_use(sys: %.2f MB, redplan: %.2f MB, Lambda: %.2f MB)\n",
+                   n_sys_size / 1048576.0, n_rp_size / 1048576.0, n_lam_size / 1048576.0);
+        }
+        // print memory use statistics
+
+
+        if (m_b_system_dirty) {
+            _TyLambdaOps::Refresh_Lambda(this->m_r_system, m_reduction_plan, m_lambda);
+            m_b_system_dirty = false;
+        }
+        // no need to rebuild lambda, just refresh the values that are being referenced
+
+        timer.Accum_DiffSample(m_f_lambda_time);
+
+        _TyLambdaOps::Collect_RightHandSide_Vector(this->m_r_system, m_reduction_plan, m_v_dx);
+        // collects the right-hand side vector
+
+        timer.Accum_DiffSample(m_f_rhs_time);
+
+        return m_v_dx.norm();
+
+    }
+
 	/**
 	 *	@brief final optimization function
 	 *

@@ -49,7 +49,8 @@ struct TCommandLineArgs {
     bool b_run_matrix_benchmarks; /**< @brief run block matrix benchmarks flag */
     bool b_run_matrix_unit_tests; /**< @brief run block matrix unit tests flag */
     bool b_use_old_system; /**< @brief old system flag (deprecated) */
-    bool b_pose_only; /**< @brief optimize pose-only problems */bool b_use_SE3; /**< @brief process SE3 system @note This is not overriden in commandline but detected in peek-parsing. */
+    bool b_pose_only; /**< @brief optimize pose-only problems */
+    bool b_use_SE3; /**< @brief process SE3 system @note This is not overriden in commandline but detected in peek-parsing. */
     const char *p_s_input_file; /**< @brief path to the data file */
     const char *p_s_inlier_file; /**< @brief path to the inlier file */
     const char *p_s_outlier_file; /**< @brief path to the outlier file */
@@ -94,9 +95,11 @@ template <class CSystemType>
 bool load_graph(const char *fileName, CSystemType &system);
 
 template<class CSystemType, class CSolverType>
-bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType const & solver, int edge_nature, FILE * save_file);
+bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & solver, int edge_nature, FILE * save_file);
 
 template<class CEdgeType, class CSolverType>
 double calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverType const & solver, int vertex_from, int vertex_to);
+
+void zero_offdiagonal(Eigen::MatrixXd &square_mat, int mat_size);
 
 #endif //SLAM_PLUS_PLUS_MAIN_H

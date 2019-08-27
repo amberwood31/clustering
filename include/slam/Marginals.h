@@ -7212,20 +7212,25 @@ public:
      *	@return Returns true on success, false on failure.
      *	@note This does not do any checking whether the matrix is up to date.
      */
-    bool save_Diagonal(Eigen::MatrixXd &cov_matrix, int pose_index) const
+    bool save_Diagonal(Eigen::MatrixXd &cov_matrix, int pose_index_from, int pose_index_to) const
     {
         const CUberBlockMatrix &r_marginals = r_SparseMatrix();
 
 
-        size_t n_order = r_marginals.n_BlockColumn_Base(pose_index);
-        size_t n_dimension = r_marginals.n_BlockColumn_Column_Num(pose_index);
+        size_t n_column = r_marginals.n_BlockColumn_Base(pose_index_from);
+        size_t n_dimension_column = r_marginals.n_BlockColumn_Column_Num(pose_index_from);
         // get col
 
+        size_t n_row = r_marginals.n_BlockRow_Base((pose_index_to));
+        size_t n_dimension_row = r_marginals.n_BlockRow_Row_Num(pose_index_to);
+        // get row
+
         CUberBlockMatrix::_TyConstMatrixXdRef block =
-            r_marginals.t_FindBlock(n_order, n_order);
+            r_marginals.t_FindBlock(n_column, n_row);
         // get block
 
-        _ASSERTE(block.rows() == block.cols() && block.cols() == n_dimension);
+
+        _ASSERTE(block.rows() == block.cols() && block.cols() == n_dimension_column);
         cov_matrix = block;
 
         return true;

@@ -78,10 +78,12 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 
     CSystemType system;
     TIncrementalSolveSetting t_incremental_config = TIncrementalSolveSetting();
-    TMarginalsComputationPolicy t_marginals_config = TMarginalsComputationPolicy( true, frequency::Never(), mpart_Diagonal, mpart_Diagonal);
+    bool check = TMarginalsComputationPolicy::b_IsSupportedMatrixPart(EBlockMatrixPart(mpart_Diagonal | mpart_LastBlock));
+    TMarginalsComputationPolicy t_marginals_config = TMarginalsComputationPolicy( true, frequency::Never(), EBlockMatrixPart(mpart_LastColumn + mpart_Diagonal), EBlockMatrixPart(mpart_LastColumn + mpart_Diagonal), mpart_Nothing);
 
     CNonlinearSolver_Lambda<CSystemType, CLinearSolverType> solver(system, t_incremental_config, t_marginals_config);
 
+    /*
     std::string file_path = "/home/amber/SLAM_plus_plus_v2.30/slam/data/manhattan_odometry.g2o";
     if(t_cmd_args.b_verbose)
         fprintf(stderr, "Loading graph\n");
@@ -95,7 +97,7 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 
     solver.r_MarginalCovariance().Dump_Diagonal();
     system.Plot2D("result.tga", plot_quality::plot_Printing); // plot in print quality
-
+*/
     std::string outlier_file = "/home/amber/SLAM_plus_plus_v2.30/slam/data/outlier.g2o";
     FILE * file = 0;
     file = fopen(t_cmd_args.p_s_outlier_file, "r");
@@ -111,6 +113,8 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     fclose(file);
     fclose(save_file);
 
+    system.Plot2D("result.tga", plot_quality::plot_Printing); // plot in print quality
+/*
     std::string inlier_file = "/home/amber/SLAM_plus_plus_v2.30/slam/data/inlier.g2o";
     file = 0;
     file = fopen(t_cmd_args.p_s_inlier_file, "r");
@@ -124,6 +128,7 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     }// load one outlier and predict the objective function change
     fclose(file);
     fclose(save_file);
+    */
 
 
     solver.Dump(); // show some stats
@@ -322,6 +327,21 @@ bool load_graph(const char *fileName, CSystemType &system){
 
 }
 
+void zero_offdiagonal(Eigen::MatrixXd &square_mat, int mat_size)
+{
+    for (int i=0; i < mat_size; i++)
+    {
+        for (int j=0;  j< mat_size; j++)
+        {
+            if (i!=j)
+                square_mat(i, j) = 0.0;
+        }
+
+    }
+
+
+}
+
 template<class CEdgeType, class CSolverType>
 double calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverType const & solver, int vertex_from, int vertex_to)
 {
@@ -333,15 +353,36 @@ double calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolver
     Eigen::MatrixXd joined_matrix(3,6);
     joined_matrix << - r_t_jacobian0, - r_t_jacobian1;
     Eigen::MatrixXd marginal_covariance(6,6);
-    Eigen::Matrix3d zero_block, identity_block;
+    Eigen::Matrix3d covariance_idfrom_zero_offdiagonal, covariance_idto_zero_offdiagonal, identity_block, zero_block;
+    covariance_idfrom_zero_offdiagonal <<   0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0;
+    covariance_idto_zero_offdiagonal <<   0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0;
     zero_block <<   0.0, 0.0, 0.0,
         0.0, 0.0, 0.0,
         0.0, 0.0, 0.0;
-    Eigen::MatrixXd covariance_idfrom(3,3), covariance_idto(3,3);
-    solver.r_MarginalCovariance().save_Diagonal(covariance_idfrom, vertex_from);
-    solver.r_MarginalCovariance().save_Diagonal(covariance_idto, vertex_to); // TODO_LOCAL: whether necessary to zero the off-diagonal
-    marginal_covariance << covariance_idfrom, zero_block, zero_block, covariance_idto;
-    cov_inv = (joined_matrix* marginal_covariance * joined_matrix.transpose() + information).inverse();
+
+    Eigen::MatrixXd covariance_idfrom(3,3), covariance_idto(3,3), covariance_idtofrom(3,3), covariance_idfromto(3,3);
+    solver.r_MarginalCovariance().save_Diagonal(covariance_idfrom, vertex_from, vertex_from);
+    solver.r_MarginalCovariance().save_Diagonal(covariance_idto, vertex_to, vertex_to);
+    //solver.r_MarginalCovariance().save_Diagonal(covariance_idfromto, vertex_from, vertex_to);
+    solver.r_MarginalCovariance().save_Diagonal(covariance_idtofrom, vertex_to, vertex_from);
+
+
+    //zero_offdiagonal(covariance_idfrom, 3);
+    //zero_offdiagonal(covariance_idto, 3);
+    //zero_offdiagonal(covariance_idtofrom, 3);
+
+    /*std::cout << "examining matrix: " << std::endl;
+    std::cout << covariance_idtofrom << std::endl;
+    std::cout << covariance_idto << std::endl;
+    std::cout << covariance_idfrom << std::endl;*/
+
+    //marginal_covariance << covariance_idfrom, covariance_idfromto, covariance_idfromto.transpose(), covariance_idto;
+    marginal_covariance << covariance_idfrom, covariance_idtofrom.transpose(), covariance_idtofrom, covariance_idto;
+    cov_inv = (joined_matrix* marginal_covariance * joined_matrix.transpose() + information.inverse()).inverse();
 
     double del_obj_function = r_v_error.dot(cov_inv * r_v_error);
 
@@ -420,7 +461,7 @@ double uStr2Double(const std::string & str)
 }
 
 template<class CSystemType, class CSolverType>
-bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType const & solver, int edge_nature, FILE * save_file) {
+bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & solver, int edge_nature, FILE * save_file) {
 
     char line[400];
     while ( fgets (line , 400 , file_pointer) != NULL )
@@ -459,13 +500,42 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType cons
 
             CEdgePose2D new_edge;
             new_edge = CEdgePose2D(vertex_from, vertex_to, Eigen::Vector3d(x, y, rot), information, system);
+
+            if ((vertex_to - vertex_from) != 1) // if reached loop closure edge
+            {
+                fprintf(stderr, "Solve again: \n"); //only solve when a loop closure edge is loaded
+                solver.Optimize(5, 1e-5);
+                double before = solver.get_residual_error();
+
+                double delta_obj = calculate_ofc(new_edge, information, solver, vertex_from, vertex_to);
+                fprintf(save_file, "%d %d %f\n", vertex_from, vertex_to, delta_obj);
+                if (edge_nature == 1)
+                {
+                    std::cout << "OFC due to outlier: " << delta_obj << std::endl;
+                    std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
+                }
+                else if (edge_nature == 0)
+                {
+                    std::cout << "OFC due to inlier: " << delta_obj << std::endl;
+                    std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
+                }
+
+                system.r_Add_Edge(new_edge);
+                //solver.Optimize(5, 1e-5);
+                double after = solver.get_initial_error();
+                solver.Optimize(5, 1e-5);
+                //std::cout << "difference: " << after-before << std::endl;
+                std::cout << "difference: " << solver.get_residual_error()- before << std::endl;
+
+
+            }
+
             system.r_Add_Edge(new_edge);
-            double delta_obj = calculate_ofc(new_edge, information, solver, vertex_from, vertex_to);
-            fprintf(save_file, "%f\n", delta_obj);
-            if (edge_nature == 1)
-                std::cout << "OFC due to outlier: " << delta_obj << std::endl;
-            else if (edge_nature == 0)
-                std::cout << "OFC due to inlier: " << delta_obj << std::endl;
+
+
+
+
+
         }
         else if(strList.size())
         {
