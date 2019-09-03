@@ -28,11 +28,6 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
         return -1;
     // parse commandline
 
-    if(!t_cmd_args.p_s_input_file) {
-        fprintf(stderr, "error: no input file specified;\n");
-
-        return -1;
-    }
 
     if(t_cmd_args.b_show_commandline) {
         printf("> ./SLAM_plus_plus");
@@ -43,7 +38,9 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     // display commandline
 
     {
+
         FILE *p_fr;
+        /*
         if((p_fr = fopen(t_cmd_args.p_s_input_file, "rb")))
             fclose(p_fr);
         else {
@@ -56,6 +53,7 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
             fprintf(stderr, "error: can't open inlier file \'%s\'\n", t_cmd_args.p_s_inlier_file);
             return -1;
         }
+         */
         if((p_fr = fopen(t_cmd_args.p_s_outlier_file, "rb")))
             fclose(p_fr);
         else {

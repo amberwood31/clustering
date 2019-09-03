@@ -26,6 +26,7 @@
 #include "slam/Marginals.h"
 #include "slam/NonlinearSolver_Base.h"
 #include "slam/NonlinearSolver_Lambda_Base.h"
+#include "slam/SE2_Types.h" // SE(2) types
 
 /** \addtogroup nlsolve
  *	@{
