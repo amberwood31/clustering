@@ -473,9 +473,23 @@ public:
      *
      */
 
-	double get_residual_chi2_error() //TODO_LOCAL: what covariance matrix to use
+    double get_residual_chi2_error() //TODO_LOCAL: what covariance matrix to use
     {
-        return m_v_dx.norm();
+        //return m_v_dx.norm();
+
+        double sum_chi2_error = 0.0;
+        int n_edge_num = this->m_r_system.n_Edge_Num();
+        for(int i = 0; i < n_edge_num; ++ i) {
+            const CEdgePose2D &e = this->m_r_system.r_Edge_Pool().template r_At<CEdgePose2D>(i);
+            Eigen::Matrix3d t_jacobian0, t_jacobian1;
+            Eigen::Vector3d v_expectation, v_error;
+            double e_chi2_error = e.f_Chi_Squared_Error();
+            sum_chi2_error += e_chi2_error;
+
+        }
+
+        return sum_chi2_error;
+
 
     }
 

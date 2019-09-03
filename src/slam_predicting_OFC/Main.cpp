@@ -508,7 +508,7 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
             {
                 fprintf(stderr, "Solve again: \n"); //only solve when a loop closure edge is loaded
                 solver.Optimize(5, 1e-5);
-                //double before = solver.get_residual_error();
+                double before = solver.get_residual_chi2_error();
 
                 double delta_obj, mi;
                 calculate_ofc(new_edge, information, solver, vertex_from, vertex_to, full_analysis_file, delta_obj, mi);
@@ -526,7 +526,7 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
 
                 system.r_Add_Edge(new_edge);
                 //solver.Optimize(5, 1e-5);
-                //double after = solver.get_initial_error();
+                double after = solver.get_residual_chi2_error();
                 //solver.Optimize(5, 1e-5);
                 //std::cout << "difference: " << after-before << std::endl;
                 //std::cout << "difference: " << solver.get_residual_error()- before << std::endl;
