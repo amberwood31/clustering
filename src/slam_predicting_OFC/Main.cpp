@@ -352,14 +352,14 @@ void zero_offdiagonal(Eigen::MatrixXd &square_mat, int mat_size)
 template<class CEdgeType, class CSolverType>
 void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverType &solver, int vertex_from, int vertex_to, FILE * full_analysis_file, double &del_obj_function, double &mi_gain)
 {
-    Eigen::Matrix3d r_t_jacobian0, r_t_jacobian1, cov_inv;
+    Eigen::Matrix3d r_t_jacobian0, r_t_jacobian1, cov_inv, innovation_cov;
     Eigen::Vector3d r_v_expectation, r_v_error;
     new_edge.Calculate_Jacobians_Expectation_Error(r_t_jacobian0, r_t_jacobian1, r_v_expectation,r_v_error);
     // optimize the system
 
     Eigen::MatrixXd joined_matrix(3,6);
     joined_matrix << - r_t_jacobian0, - r_t_jacobian1;
-    Eigen::MatrixXd innovation_matrix(6,6);
+    Eigen::MatrixXd marginal_covariance(6,6);
     Eigen::Matrix3d covariance_idfrom_zero_offdiagonal, covariance_idto_zero_offdiagonal, identity_block, zero_block;
     covariance_idfrom_zero_offdiagonal <<   0.0, 0.0, 0.0,
         0.0, 0.0, 0.0,
@@ -374,18 +374,22 @@ void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverTy
     Eigen::MatrixXd covariance_idfrom(3,3), covariance_idto(3,3), covariance_idtofrom(3,3), covariance_idfromto(3,3);
     solver.r_MarginalCovariance().save_Diagonal(covariance_idfrom, vertex_from, vertex_from);
     solver.r_MarginalCovariance().save_Diagonal(covariance_idto, vertex_to, vertex_to);
-    //solver.r_MarginalCovariance().save_Diagonal(covariance_idfromto, vertex_from, vertex_to);
-    solver.r_MarginalCovariance().save_Diagonal(covariance_idtofrom, vertex_to, vertex_from);
+    solver.r_MarginalCovariance().save_Diagonal(covariance_idfromto, vertex_from, vertex_to);
+    //solver.r_MarginalCovariance().save_Diagonal(covariance_idtofrom, vertex_to, vertex_from);
 
 
-    //marginal_covariance << covariance_idfrom, covariance_idfromto, covariance_idfromto.transpose(), covariance_idto;
-    innovation_matrix << covariance_idfrom, covariance_idtofrom.transpose(), covariance_idtofrom, covariance_idto;
-    cov_inv = (joined_matrix* innovation_matrix * joined_matrix.transpose() + information.inverse()).inverse();
+    //marginal_covariance << covariance_idfrom, zero_block, zero_block, covariance_idto;
+    marginal_covariance << covariance_idfrom, covariance_idfromto, covariance_idfromto.transpose(), covariance_idto;
+    innovation_cov = joined_matrix* marginal_covariance * joined_matrix.transpose() + information.inverse();
+    cov_inv = innovation_cov.inverse();
 
+    //std::cout << "transform norm:  " << r_v_error.norm() << std::endl;
+    //std::cout << "information norm: " << cov_inv.norm() << std::endl;
 
     del_obj_function = r_v_error.dot(cov_inv * r_v_error);
-    mi_gain = log(innovation_matrix.determinant() / information.inverse().determinant());
+    mi_gain = log(innovation_cov.determinant() / information.inverse().determinant());
     fprintf(full_analysis_file, "%d %d %f %f %f %f\n", vertex_from, vertex_to, r_v_error.norm(), cov_inv.norm(), del_obj_function, mi_gain);
+
 
 
 
@@ -531,12 +535,9 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
 
 
             }
-
-            system.r_Add_Edge(new_edge);
-
-
-
-
+            else{
+                system.r_Add_Edge(new_edge); // adding all odometry edges
+            }
 
         }
         else if(strList.size())
