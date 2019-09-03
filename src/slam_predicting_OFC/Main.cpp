@@ -105,13 +105,22 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     const char *save_file_name = "outlier_analysis.txt";
     FILE * save_file = fopen(save_file_name, "w");
 
+    const char *real_ofc_name = "real_ofc.txt";
+    FILE * real_ofc_file = fopen(real_ofc_name, "w");
+
+    const char *full_analysis_name = "full_analysis.txt";
+    FILE * full_analysis_file = fopen(full_analysis_name, "w");
+
+
     if(file){
 
-        analyze_edge_set(file, system, solver, 1, save_file);
+        analyze_edge_set(file, system, solver, 1, save_file, real_ofc_file, full_analysis_file);
 
     }// load one outlier and predict the objective function change
     fclose(file);
     fclose(save_file);
+    fclose(real_ofc_file);
+    fclose(full_analysis_file);
 
     system.Plot2D("result.tga", plot_quality::plot_Printing); // plot in print quality
 /*
@@ -343,7 +352,7 @@ void zero_offdiagonal(Eigen::MatrixXd &square_mat, int mat_size)
 }
 
 template<class CEdgeType, class CSolverType>
-double calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverType const & solver, int vertex_from, int vertex_to)
+void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverType &solver, int vertex_from, int vertex_to, FILE * full_analysis_file, double &del_obj_function, double &mi_gain)
 {
     Eigen::Matrix3d r_t_jacobian0, r_t_jacobian1, cov_inv;
     Eigen::Vector3d r_v_expectation, r_v_error;
@@ -352,7 +361,7 @@ double calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolver
 
     Eigen::MatrixXd joined_matrix(3,6);
     joined_matrix << - r_t_jacobian0, - r_t_jacobian1;
-    Eigen::MatrixXd marginal_covariance(6,6);
+    Eigen::MatrixXd innovation_matrix(6,6);
     Eigen::Matrix3d covariance_idfrom_zero_offdiagonal, covariance_idto_zero_offdiagonal, identity_block, zero_block;
     covariance_idfrom_zero_offdiagonal <<   0.0, 0.0, 0.0,
         0.0, 0.0, 0.0,
@@ -371,22 +380,15 @@ double calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolver
     solver.r_MarginalCovariance().save_Diagonal(covariance_idtofrom, vertex_to, vertex_from);
 
 
-    //zero_offdiagonal(covariance_idfrom, 3);
-    //zero_offdiagonal(covariance_idto, 3);
-    //zero_offdiagonal(covariance_idtofrom, 3);
-
-    /*std::cout << "examining matrix: " << std::endl;
-    std::cout << covariance_idtofrom << std::endl;
-    std::cout << covariance_idto << std::endl;
-    std::cout << covariance_idfrom << std::endl;*/
-
     //marginal_covariance << covariance_idfrom, covariance_idfromto, covariance_idfromto.transpose(), covariance_idto;
-    marginal_covariance << covariance_idfrom, covariance_idtofrom.transpose(), covariance_idtofrom, covariance_idto;
-    cov_inv = (joined_matrix* marginal_covariance * joined_matrix.transpose() + information.inverse()).inverse();
+    innovation_matrix << covariance_idfrom, covariance_idtofrom.transpose(), covariance_idtofrom, covariance_idto;
+    cov_inv = (joined_matrix* innovation_matrix * joined_matrix.transpose() + information.inverse()).inverse();
 
-    double del_obj_function = r_v_error.dot(cov_inv * r_v_error);
 
-    return del_obj_function;
+    del_obj_function = r_v_error.dot(cov_inv * r_v_error);
+    mi_gain = log(innovation_matrix.determinant() / information.inverse().determinant());
+    fprintf(full_analysis_file, "%d %d %f %f %f %f\n", vertex_from, vertex_to, r_v_error.norm(), cov_inv.norm(), del_obj_function, mi_gain);
+
 
 
 }
@@ -461,7 +463,8 @@ double uStr2Double(const std::string & str)
 }
 
 template<class CSystemType, class CSolverType>
-bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & solver, int edge_nature, FILE * save_file) {
+bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & solver, int edge_nature, FILE * save_file, FILE * real_ofc_file, FILE * full_analysis_file)
+{
 
     char line[400];
     while ( fgets (line , 400 , file_pointer) != NULL )
@@ -505,9 +508,10 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
             {
                 fprintf(stderr, "Solve again: \n"); //only solve when a loop closure edge is loaded
                 solver.Optimize(5, 1e-5);
-                double before = solver.get_residual_error();
+                //double before = solver.get_residual_error();
 
-                double delta_obj = calculate_ofc(new_edge, information, solver, vertex_from, vertex_to);
+                double delta_obj, mi;
+                calculate_ofc(new_edge, information, solver, vertex_from, vertex_to, full_analysis_file, delta_obj, mi);
                 fprintf(save_file, "%d %d %f\n", vertex_from, vertex_to, delta_obj);
                 if (edge_nature == 1)
                 {
@@ -522,10 +526,10 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
 
                 system.r_Add_Edge(new_edge);
                 //solver.Optimize(5, 1e-5);
-                double after = solver.get_initial_error();
-                solver.Optimize(5, 1e-5);
+                //double after = solver.get_initial_error();
+                //solver.Optimize(5, 1e-5);
                 //std::cout << "difference: " << after-before << std::endl;
-                std::cout << "difference: " << solver.get_residual_error()- before << std::endl;
+                //std::cout << "difference: " << solver.get_residual_error()- before << std::endl;
 
 
             }
