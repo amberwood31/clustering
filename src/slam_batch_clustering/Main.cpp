@@ -468,6 +468,8 @@ double uStr2Double(const std::string & str)
 template<class CSystemType, class CSolverType>
 bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & solver, int edge_nature, FILE * save_file, FILE * real_ofc_file, FILE * full_analysis_file)
 {
+    CTimer t;
+    double f_time_before = t.f_Time();
 
     char line[400];
     while ( fgets (line , 400 , file_pointer) != NULL )
@@ -509,8 +511,9 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
 
             if ((vertex_to - vertex_from) != 1) // if reached loop closure edge
             {
-                fprintf(stderr, "Solve again: \n"); //only solve when a loop closure edge is loaded
+
                 solver.Optimize(5, 1e-5);
+
                 double before = solver.get_residual_chi2_error();
 
                 double delta_obj, mi_gain;
@@ -518,13 +521,13 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
                 fprintf(save_file, "%d %d %f\n", vertex_from, vertex_to, delta_obj);
                 if (edge_nature == 1)
                 {
-                    std::cout << "OFC due to outlier: " << delta_obj << std::endl;
-                    std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
+                    //std::cout << "OFC due to outlier: " << delta_obj << std::endl;
+                    //std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
                 }
                 else if (edge_nature == 0)
                 {
-                    std::cout << "OFC due to inlier: " << delta_obj << std::endl;
-                    std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
+                    //std::cout << "OFC due to inlier: " << delta_obj << std::endl;
+                    //std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
                 }
 
                 {   // use chi2 difference test
@@ -534,7 +537,7 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
                     if (delta_obj < utils::chi2(dof))
                     {
                         std::cout << "edge: " << vertex_from << " "  << vertex_to << std::endl;
-                        system->r_Add_Edge(new_edge);
+                        system.r_Add_Edge(new_edge);
                         std::cout << "ofc: " << delta_obj << std::endl;
                         std::cout << "mi: " << mi_gain << std::endl;
 
@@ -547,6 +550,7 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
 
                         std::cout << "ofc: " << delta_obj << std::endl;
                         std::cout << "mi: " << mi_gain << std::endl;
+                        std::cout << " " << std::endl; // add empty line to indicate clustering
                         //std::cout << "inverse check p: " << utils::p(delta_obj, dof) << std::endl;
                         //std::cout << "clearing all existing LC edges" << std::endl;
                         double f_time_after = t.f_Time();
@@ -583,6 +587,7 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
         }
     }
 
+    std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
 
 }
 
