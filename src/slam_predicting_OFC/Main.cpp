@@ -79,7 +79,7 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     bool check = TMarginalsComputationPolicy::b_IsSupportedMatrixPart(EBlockMatrixPart(mpart_Diagonal | mpart_LastBlock));
     TMarginalsComputationPolicy t_marginals_config = TMarginalsComputationPolicy( true, frequency::Never(), EBlockMatrixPart(mpart_LastColumn + mpart_Diagonal), EBlockMatrixPart(mpart_LastColumn + mpart_Diagonal), mpart_Nothing);
 
-    CNonlinearSolver_Lambda<CSystemType, CLinearSolverType> solver(system, t_incremental_config, t_marginals_config);
+    CNonlinearSolver_Lambda<CSystemType, CLinearSolverType> solver(system, t_incremental_config, t_marginals_config, t_cmd_args.b_verbose);
 
     /*
     std::string file_path = "/home/amber/SLAM_plus_plus_v2.30/slam/data/manhattan_odometry.g2o";
@@ -112,7 +112,7 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 
     if(file){
 
-        analyze_edge_set(file, system, solver, 1, save_file, real_ofc_file, full_analysis_file);
+        analyze_edge_set(file, system, solver, 1, save_file, real_ofc_file, full_analysis_file, t_cmd_args.b_verbose);
 
     }// load one outlier and predict the objective function change
     fclose(file);
@@ -158,7 +158,7 @@ void TCommandLineArgs::Defaults()
     b_show_commandline = true;
     b_show_flags = true;
     b_show_detailed_timing = true;
-    b_verbose = true;
+    b_verbose = false;
     // verbosity
 
     b_use_schur = false;
@@ -465,7 +465,7 @@ double uStr2Double(const std::string & str)
 }
 
 template<class CSystemType, class CSolverType>
-bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & solver, int edge_nature, FILE * save_file, FILE * real_ofc_file, FILE * full_analysis_file)
+bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & solver, int edge_nature, FILE * save_file, FILE * real_ofc_file, FILE * full_analysis_file, bool verbose)
 {
 
     char line[400];
@@ -508,7 +508,13 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
 
             if ((vertex_to - vertex_from) != 1) // if reached loop closure edge
             {
-                fprintf(stderr, "Solve again: \n"); //only solve when a loop closure edge is loaded
+                if (verbose == true)
+                {
+                    std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
+                    fprintf(stderr, "Solve again: \n"); //only solve when a loop closure edge is loaded
+                }
+
+
                 solver.Optimize(5, 1e-5);
                 double before = solver.get_residual_chi2_error();
 
@@ -517,13 +523,13 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
                 fprintf(save_file, "%d %d %f\n", vertex_from, vertex_to, delta_obj);
                 if (edge_nature == 1)
                 {
-                    std::cout << "OFC due to outlier: " << delta_obj << std::endl;
-                    std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
+                    //std::cout << "OFC due to outlier: " << delta_obj << std::endl;
+                    //std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
                 }
                 else if (edge_nature == 0)
                 {
-                    std::cout << "OFC due to inlier: " << delta_obj << std::endl;
-                    std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
+                    //std::cout << "OFC due to inlier: " << delta_obj << std::endl;
+                    //std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
                 }
 
                 system.r_Add_Edge(new_edge);

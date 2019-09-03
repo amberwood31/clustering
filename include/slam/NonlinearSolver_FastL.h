@@ -406,6 +406,26 @@ public:
 		return r_R().n_BlockColumn_Num();
 	}
 
+
+    double get_residual_chi2_error() //
+    {
+        //return m_v_dx.norm();
+
+        double sum_chi2_error = 0.0;
+        int n_edge_num = this->m_r_system.n_Edge_Num();
+        for(int i = 0; i < n_edge_num; ++ i) {
+            const CEdgePose2D &e = this->m_r_system.r_Edge_Pool().template r_At<CEdgePose2D>(i);
+            double e_chi2_error = e.f_Chi_Squared_Error();
+            sum_chi2_error += e_chi2_error;
+
+        }
+
+        return sum_chi2_error;
+
+
+    }
+
+
 	/**
 	 *	@brief gets the cumulative time of calculating the covariances
 	 *	@return Returns the cumulative time of calculating the covariances, in seconds.
@@ -1541,6 +1561,7 @@ protected:
 				// to be adding a new vertex, just that there is no loop closure
 
 				Optimize(0, 0); // need to calculate marginals in any case
+				//TODO_LOCAL: so even when delay_optimization has been set, marginals still computed, why?
 			} else {
 #ifdef __NONLINEAR_SOLVER_FAST_L_BACKSUBSTITUTE_EACH_1
 				_ASSERTE(m_lambda.n_BlockColumn_Num() < n_vertex_num); // we already checked for this a little above, now we are sure to be adding a new vertex, just that there is no loop closure
