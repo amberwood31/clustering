@@ -4,6 +4,7 @@
 int n_dummy_param = 0;
 /**< @brief a dummy parameter, used as a convenient commandline input, intended for debugging / testing */
 #include "slam_predicting_OFC/Main.h"
+#include "slam_predicting_OFC/utils.hpp"
 
 #include <stdio.h> // printf
 #include <iostream>
@@ -512,8 +513,8 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
                 solver.Optimize(5, 1e-5);
                 double before = solver.get_residual_chi2_error();
 
-                double delta_obj, mi;
-                calculate_ofc(new_edge, information, solver, vertex_from, vertex_to, full_analysis_file, delta_obj, mi);
+                double delta_obj, mi_gain;
+                calculate_ofc(new_edge, information, solver, vertex_from, vertex_to, full_analysis_file, delta_obj, mi_gain);
                 fprintf(save_file, "%d %d %f\n", vertex_from, vertex_to, delta_obj);
                 if (edge_nature == 1)
                 {
@@ -526,7 +527,43 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
                     std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
                 }
 
-                system.r_Add_Edge(new_edge);
+                {   // use chi2 difference test
+                    int dof = 2 * 1; // difference between previous iteration, instead of the current dof
+                    // multiplied by 2 in 2D cases
+
+                    if (delta_obj < utils::chi2(dof))
+                    {
+                        std::cout << "edge: " << vertex_from << " "  << vertex_to << std::endl;
+                        system->r_Add_Edge(new_edge);
+                        std::cout << "ofc: " << delta_obj << std::endl;
+                        std::cout << "mi: " << mi_gain << std::endl;
+
+                    }
+                    else
+                    {
+                        double evil_scale = utils::p(delta_obj, dof);
+                        std::cout << " " << std::endl; // add empty line to indicate clustering
+                        std::cout << "edge: " << vertex_from << " "  << vertex_to << " " << evil_scale << std::endl;
+
+                        std::cout << "ofc: " << delta_obj << std::endl;
+                        std::cout << "mi: " << mi_gain << std::endl;
+                        //std::cout << "inverse check p: " << utils::p(delta_obj, dof) << std::endl;
+                        //std::cout << "clearing all existing LC edges" << std::endl;
+                        double f_time_after = t.f_Time();
+                        double f_time = f_time_after - f_time_before;
+                        //printf("\nwhole solving took " PRItimeprecise " (%f sec)\n", PRItimeparams(f_time), f_time);
+                        //printf("\nnumber of edges: %ld\n", system->n_Edge_Num());
+                        /*printf("solver spent %f seconds in marginals\n"
+                               "\t chol: %f\n"
+                               "\tmargs: %f\n"
+                               "\t incm: %f (ran " PRIsize " times)\n",
+                               solver->m_f_extra_chol_time + solver->m_f_marginals_time + solver->m_f_incmarginals_time,
+                               solver->m_f_extra_chol_time, solver->m_f_marginals_time,
+                               solver->m_f_incmarginals_time, solver->m_n_incmarginals_num);*/
+                    }
+                }
+
+
                 //solver.Optimize(5, 1e-5);
                 double after = solver.get_residual_chi2_error();
                 //solver.Optimize(5, 1e-5);
