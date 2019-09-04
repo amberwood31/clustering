@@ -145,7 +145,7 @@ IF(UNIX)
 ENDIF(UNIX)
 
 # apply some OpenMP definitions, make eigen not parallel
-OPTION(SLAM_P_P_USE_OPENMP "Use OpenMP for parallelization." TRUE)
+OPTION(SLAM_P_P_USE_OPENMP "Use OpenMP for parallelization." FALSE)
 IF(SLAM_P_P_USE_OPENMP)
 	FIND_PACKAGE(OpenMP)
 	IF(OPENMP_FOUND)

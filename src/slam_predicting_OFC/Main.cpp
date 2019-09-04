@@ -22,6 +22,10 @@ int n_dummy_param = 0;
  */
 int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 {
+    CTimer t;
+    double start, end;
+    start = t.f_Time();
+
     TCommandLineArgs t_cmd_args;
     t_cmd_args.Defaults(); // set defaults
     if(!t_cmd_args.Parse(n_arg_num, p_arg_list))
@@ -118,6 +122,10 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     fclose(save_file);
     fclose(real_ofc_file);
     fclose(full_analysis_file);
+
+    end= t.f_Time();
+    printf("\nthe whole process took %f sec\n", end-start);
+
 
     system.Plot2D("result.tga", plot_quality::plot_Printing); // plot in print quality
 /*

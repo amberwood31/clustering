@@ -23,6 +23,10 @@ int n_dummy_param = 0;
  */
 int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 {
+    double start, end;
+    CTimer t;
+    start = t.f_Time();
+
     TCommandLineArgs t_cmd_args;
     t_cmd_args.Defaults(); // set defaults
     if(!t_cmd_args.Parse(n_arg_num, p_arg_list))
@@ -77,10 +81,9 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 
     CSystemType system;
     TIncrementalSolveSetting t_incremental_config = TIncrementalSolveSetting();
-    bool check = TMarginalsComputationPolicy::b_IsSupportedMatrixPart(EBlockMatrixPart(mpart_Diagonal | mpart_LastBlock));
     TMarginalsComputationPolicy t_marginals_config = TMarginalsComputationPolicy( true, frequency::Never(), EBlockMatrixPart(mpart_LastColumn + mpart_Diagonal), EBlockMatrixPart(mpart_LastColumn + mpart_Diagonal), mpart_Nothing);
 
-    CNonlinearSolver_Lambda<CSystemType, CLinearSolverType> solver(system, t_incremental_config, t_marginals_config);
+    CNonlinearSolver_Lambda<CSystemType, CLinearSolverType> solver(system, t_incremental_config, t_marginals_config, t_cmd_args.b_verbose);
 
     /*
     std::string file_path = "/home/amber/SLAM_plus_plus_v2.30/slam/data/manhattan_odometry.g2o";
@@ -112,14 +115,16 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 
 
     if(file){
-
-        analyze_edge_set(file, system, solver, 1, save_file, real_ofc_file, full_analysis_file);
+        analyze_edge_set(file, system, solver, 1, save_file, real_ofc_file, full_analysis_file, t_cmd_args.b_verbose);
 
     }// load one outlier and predict the objective function change
     fclose(file);
     fclose(save_file);
     fclose(real_ofc_file);
     fclose(full_analysis_file);
+
+    end= t.f_Time();
+    printf("\nthe whole process took %f sec\n", end-start);
 
     system.Plot2D("result.tga", plot_quality::plot_Printing); // plot in print quality
 /*
@@ -159,7 +164,7 @@ void TCommandLineArgs::Defaults()
     b_show_commandline = true;
     b_show_flags = true;
     b_show_detailed_timing = true;
-    b_verbose = true;
+    b_verbose = false;
     // verbosity
 
     b_use_schur = false;
@@ -375,12 +380,15 @@ void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverTy
     Eigen::MatrixXd covariance_idfrom(3,3), covariance_idto(3,3), covariance_idtofrom(3,3), covariance_idfromto(3,3);
     solver.r_MarginalCovariance().save_Diagonal(covariance_idfrom, vertex_from, vertex_from);
     solver.r_MarginalCovariance().save_Diagonal(covariance_idto, vertex_to, vertex_to);
-    solver.r_MarginalCovariance().save_Diagonal(covariance_idfromto, vertex_from, vertex_to);
-    //solver.r_MarginalCovariance().save_Diagonal(covariance_idtofrom, vertex_to, vertex_from);
+    if (vertex_from > vertex_to)
+    {
+        solver.r_MarginalCovariance().save_Diagonal(covariance_idfromto, vertex_from, vertex_to);
+        marginal_covariance << covariance_idfrom, covariance_idfromto, covariance_idfromto.transpose(), covariance_idto;
+    } else{
+        solver.r_MarginalCovariance().save_Diagonal(covariance_idfromto, vertex_to, vertex_from);
+        marginal_covariance << covariance_idfrom, covariance_idfromto.transpose(), covariance_idfromto, covariance_idto;
 
-
-    //marginal_covariance << covariance_idfrom, zero_block, zero_block, covariance_idto;
-    marginal_covariance << covariance_idfrom, covariance_idfromto, covariance_idfromto.transpose(), covariance_idto;
+    }
     innovation_cov = joined_matrix* marginal_covariance * joined_matrix.transpose() + information.inverse();
     cov_inv = innovation_cov.inverse();
 
@@ -466,14 +474,15 @@ double uStr2Double(const std::string & str)
 }
 
 template<class CSystemType, class CSolverType>
-bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & solver, int edge_nature, FILE * save_file, FILE * real_ofc_file, FILE * full_analysis_file)
+bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & solver, int edge_nature, FILE * save_file, FILE * real_ofc_file, FILE * full_analysis_file, bool verbose)
 {
     CTimer t;
-    double f_time_before = t.f_Time();
+    double f_time_before, f_time_after;
 
     char line[400];
     while ( fgets (line , 400 , file_pointer) != NULL )
     {
+        f_time_before = t.f_Time();
         std::vector<std::string> strList = uListToVector(uSplit(uReplaceChar(line, '\n', ' '), ' '));
         if(strList.size() == 30)
         {
@@ -538,8 +547,14 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
                     {
                         std::cout << "edge: " << vertex_from << " "  << vertex_to << std::endl;
                         system.r_Add_Edge(new_edge);
-                        std::cout << "ofc: " << delta_obj << std::endl;
-                        std::cout << "mi: " << mi_gain << std::endl;
+                        if (verbose == true)
+                        {
+                            std::cout << "ofc: " << delta_obj << std::endl;
+                            //std::cout << "mi: " << mi_gain << std::endl;
+                            f_time_after= t.f_Time();
+                            printf("this iteration took %f sec\n", f_time_after-f_time_before);
+
+                        }
 
                     }
                     else
@@ -548,8 +563,18 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
                         std::cout << " " << std::endl; // add empty line to indicate clustering
                         std::cout << "edge: " << vertex_from << " "  << vertex_to << " " << evil_scale << std::endl;
 
-                        std::cout << "ofc: " << delta_obj << std::endl;
-                        std::cout << "mi: " << mi_gain << std::endl;
+                        if (verbose == true)
+                        {
+                            std::cout << "ofc: " << delta_obj << std::endl;
+                            //std::cout << "mi: " << mi_gain << std::endl;
+
+                            //std::cout << "inverse check p: " << utils::p(delta_obj, dof) << std::endl;
+                            //std::cout << "clearing all existing LC edges" << std::endl;
+
+                            f_time_after= t.f_Time();
+                            printf("this iteration took %f sec\n", f_time_after-f_time_before);
+
+                        }
                         std::cout << " " << std::endl; // add empty line to indicate clustering
                         //std::cout << "inverse check p: " << utils::p(delta_obj, dof) << std::endl;
                         //std::cout << "clearing all existing LC edges" << std::endl;
@@ -578,6 +603,13 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
             }
             else{
                 system.r_Add_Edge(new_edge); // adding all odometry edges
+                if (verbose == true)
+                {
+                    f_time_after= t.f_Time();
+                    std::cout<<"added OD edge, not solved!";
+                    printf("\nthis iteration took %f sec\n", f_time_after-f_time_before);
+
+                }
             }
 
         }
@@ -587,7 +619,8 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
         }
     }
 
-    std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
+    if (verbose == true)
+        std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
 
 }
 
