@@ -467,10 +467,13 @@ double uStr2Double(const std::string & str)
 template<class CSystemType, class CSolverType>
 bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & solver, int edge_nature, FILE * save_file, FILE * real_ofc_file, FILE * full_analysis_file, bool verbose)
 {
+    CTimer t;
+    double f_time_before, f_time_after;
 
     char line[400];
     while ( fgets (line , 400 , file_pointer) != NULL )
     {
+        f_time_before= t.f_Time();
         std::vector<std::string> strList = uListToVector(uSplit(uReplaceChar(line, '\n', ' '), ' '));
         if(strList.size() == 30)
         {
@@ -514,8 +517,15 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
                     fprintf(stderr, "Solve again: \n"); //only solve when a loop closure edge is loaded
                 }
 
-
+                f_time_before= t.f_Time();
                 solver.Optimize(5, 1e-5);
+                if (verbose == true)
+                {
+                    f_time_after= t.f_Time();
+                    printf("\nthis iteration of solving took %f sec\n", f_time_after-f_time_before);
+
+                }
+
                 double before = solver.get_residual_chi2_error();
 
                 double delta_obj, mi;
@@ -540,9 +550,16 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
                 //std::cout << "difference: " << solver.get_residual_error()- before << std::endl;
 
 
+
             }
             else{
                 system.r_Add_Edge(new_edge); // adding all odometry edges
+                if (verbose == true)
+                {
+                    f_time_after= t.f_Time();
+                    printf("\nthis iteration took %f sec\n", f_time_after-f_time_before);
+
+                }
             }
 
         }

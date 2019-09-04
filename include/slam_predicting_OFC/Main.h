@@ -7,8 +7,10 @@
 
 
 #include "slam/LinearSolver_UberBlock.h"
-#include "slam/LinearSolver_Schur.h"
-//#include "slam/LinearSolver_CholMod.h" // linear solvers (only one is required)
+#include "slam/LinearSolver_CholMod.h"
+//#include "slam/LinearSolver_Schur.h"
+//#include "slam/LinearSolver_CSparse.h"
+//#include "slam/LinearSolver_CXSparse.h" // linear solvers (only one is required)
 #include "slam/ConfigSolvers.h" // nonlinear graph solvers
 #include "slam/SE2_Types.h" // SE(2) types
 #include "slam/SE3_Types.h"
@@ -89,7 +91,9 @@ typedef MakeTypelist(CEdgePose2D) TEdgeTypelist;
 
 typedef CFlatSystem<CVertexPose2D, TVertexTypelist, CEdgePose2D, TEdgeTypelist> CSystemType;
 
-typedef CLinearSolver_UberBlock<CSystemType::_TyHessianMatrixBlockList> CLinearSolverType;
+typedef CLinearSolver_CholMod CLinearSolverType; // or cholmod
+
+//typedef CLinearSolver_UberBlock<CSystemType::_TyHessianMatrixBlockList> CLinearSolverType;
 
 template <class CSystemType>
 bool load_graph(const char *fileName, CSystemType &system);

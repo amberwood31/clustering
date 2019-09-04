@@ -73,7 +73,6 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 
 
 
-    //typedef CLinearSolver_CholMod CLinearSolverType; // or cholmod
 
     typedef CNonlinearSolver_FastL<CSystemType, CLinearSolverType> CNonlinearSolverType;
 
