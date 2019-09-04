@@ -76,7 +76,6 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 
     CSystemType system;
     TIncrementalSolveSetting t_incremental_config = TIncrementalSolveSetting();
-    bool check = TMarginalsComputationPolicy::b_IsSupportedMatrixPart(EBlockMatrixPart(mpart_Diagonal | mpart_LastBlock));
     TMarginalsComputationPolicy t_marginals_config = TMarginalsComputationPolicy( true, frequency::Never(), EBlockMatrixPart(mpart_LastColumn + mpart_Diagonal), EBlockMatrixPart(mpart_LastColumn + mpart_Diagonal), mpart_Nothing);
 
     CNonlinearSolver_Lambda<CSystemType, CLinearSolverType> solver(system, t_incremental_config, t_marginals_config, t_cmd_args.b_verbose);
@@ -374,12 +373,15 @@ void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverTy
     Eigen::MatrixXd covariance_idfrom(3,3), covariance_idto(3,3), covariance_idtofrom(3,3), covariance_idfromto(3,3);
     solver.r_MarginalCovariance().save_Diagonal(covariance_idfrom, vertex_from, vertex_from);
     solver.r_MarginalCovariance().save_Diagonal(covariance_idto, vertex_to, vertex_to);
-    solver.r_MarginalCovariance().save_Diagonal(covariance_idfromto, vertex_from, vertex_to);
-    //solver.r_MarginalCovariance().save_Diagonal(covariance_idtofrom, vertex_to, vertex_from);
+    if (vertex_from > vertex_to)
+    {
+        solver.r_MarginalCovariance().save_Diagonal(covariance_idfromto, vertex_from, vertex_to);
+        marginal_covariance << covariance_idfrom, covariance_idfromto, covariance_idfromto.transpose(), covariance_idto;
+    } else{
+        solver.r_MarginalCovariance().save_Diagonal(covariance_idfromto, vertex_to, vertex_from);
+        marginal_covariance << covariance_idfrom, covariance_idfromto.transpose(), covariance_idfromto, covariance_idto;
 
-
-    //marginal_covariance << covariance_idfrom, zero_block, zero_block, covariance_idto;
-    marginal_covariance << covariance_idfrom, covariance_idfromto, covariance_idfromto.transpose(), covariance_idto;
+    }
     innovation_cov = joined_matrix* marginal_covariance * joined_matrix.transpose() + information.inverse();
     cov_inv = innovation_cov.inverse();
 

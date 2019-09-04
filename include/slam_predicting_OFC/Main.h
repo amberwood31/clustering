@@ -91,9 +91,9 @@ typedef MakeTypelist(CEdgePose2D) TEdgeTypelist;
 
 typedef CFlatSystem<CVertexPose2D, TVertexTypelist, CEdgePose2D, TEdgeTypelist> CSystemType;
 
-typedef CLinearSolver_CholMod CLinearSolverType; // or cholmod
+//typedef CLinearSolver_CholMod CLinearSolverType;
 
-//typedef CLinearSolver_UberBlock<CSystemType::_TyHessianMatrixBlockList> CLinearSolverType;
+typedef CLinearSolver_UberBlock<CSystemType::_TyHessianMatrixBlockList> CLinearSolverType;
 
 template <class CSystemType>
 bool load_graph(const char *fileName, CSystemType &system);
