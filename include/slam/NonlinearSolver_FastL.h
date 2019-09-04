@@ -656,6 +656,20 @@ public:
 		}
 	}
 
+    /**
+     *	@brief change the marginal computation policy
+     *
+     *	Not sure whether this would work
+     */
+
+	void Change_b_marginal_computation(bool new_marginal_b)
+	{
+	    this->m_t_marginals_config.OnCalculate_marginals(new_marginal_b);
+
+	}
+
+
+
 	/**
 	 *	@brief measurement change on the last edge
 	 *

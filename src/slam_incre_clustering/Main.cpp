@@ -81,6 +81,7 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 
     TMarginalsComputationPolicy t_marginals_config = TMarginalsComputationPolicy( true, frequency::Every(1), EBlockMatrixPart(mpart_LastColumn + mpart_Diagonal), EBlockMatrixPart(mpart_LastColumn + mpart_Diagonal), mpart_Nothing);
 
+    //t_marginals_config.OnCalculate_marginals(false);
     CNonlinearSolverType solver(system, solve::Nonlinear(frequency::Every(1)), t_marginals_config, t_cmd_args.b_verbose);
 
     /*
@@ -518,8 +519,8 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
                 //solver.Optimize(5, 1e-5);
 
                 //double before = solver.get_residual_chi2_error();
-
                 solver.Enable_Optimization(); //enable optimization when there is a LC edge
+
                 double delta_obj, mi_gain;
                 calculate_ofc(new_edge, information, solver, vertex_from, vertex_to, full_analysis_file, delta_obj, mi_gain);
                 fprintf(save_file, "%d %d %f\n", vertex_from, vertex_to, delta_obj);

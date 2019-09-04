@@ -444,6 +444,17 @@ struct TMarginalsComputationPolicy {
 			b_IsSupportedMatrixPart(n_cache_miss_policy)); // column selected by query, therefore mpart_Column is permissible
 	}
 
+    /**
+     *	@brief changes calculate_marginal boolean
+     *	@param[in] n_new_boolean is the new decision on whether to compute marginals
+     *	@return Returns reference to this, so that chaining of these commands is possible.
+     */
+    inline TMarginalsComputationPolicy &OnCalculate_marginals(bool b_new_calculate)
+    {
+        b_calculate = b_new_calculate;
+        return *this;
+    }
+
 	/**
 	 *	@brief changes incremental calculation policy
 	 *	@param[in] n_new_policy is covariance matrix part that should be calculated incrementally
