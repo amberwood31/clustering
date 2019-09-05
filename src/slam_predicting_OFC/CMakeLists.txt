@@ -1,3 +1,5 @@
+set(CMAKE_BUILD_TYPE Release)
+
 # Set required variables.
 SET(SLAM_EXAMPLE_BINARY_NAME "slam_predicting_ofc")
 

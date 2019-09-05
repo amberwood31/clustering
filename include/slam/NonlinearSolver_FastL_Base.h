@@ -88,7 +88,7 @@
  */
 #define __NONLINEAR_SOLVER_FAST_L_DETAILED_TIMING
 
-#ifndef _DEBUG
+//#ifndef _DEBUG // TODO_LOCAL: Don't see any reason to disable dense_cholesky when debugging
 
 /**
  *	@def __NONLINEAR_SOLVER_FAST_L_ENABLE_DENSE_CHOLESKY
@@ -96,7 +96,7 @@
  */
 #define __NONLINEAR_SOLVER_FAST_L_ENABLE_DENSE_CHOLESKY
 
-#endif // !_DEBUG
+//#endif // !_DEBUG
 
 /**
  *	@def __NONLINEAR_SOLVER_FAST_L_PARALLEL_MATMULT_THRESH

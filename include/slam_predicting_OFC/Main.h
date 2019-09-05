@@ -106,4 +106,10 @@ void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverTy
 
 void zero_offdiagonal(Eigen::MatrixXd &square_mat, int mat_size);
 
+
+/**
+ *	@brief prints all the important compiler / optimization switches this app was built with
+ */
+void DisplaySwitches();
+
 #endif //SLAM_PLUS_PLUS_MAIN_H

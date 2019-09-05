@@ -23,6 +23,7 @@ int n_dummy_param = 0;
  */
 int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 {
+    DisplaySwitches();
     CTimer t;
     double start, end;
     start = t.f_Time();
@@ -85,7 +86,7 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     TMarginalsComputationPolicy t_marginals_config = TMarginalsComputationPolicy( true, frequency::Every(1), EBlockMatrixPart(mpart_LastColumn | mpart_Diagonal), EBlockMatrixPart(mpart_LastColumn | mpart_Diagonal), mpart_Nothing);
 
     //t_marginals_config.OnCalculate_marginals(false);
-    CNonlinearSolverType solver(system, solve::Nonlinear(frequency::Every(1)), t_marginals_config, t_cmd_args.b_verbose);
+    CNonlinearSolverType solver(system, solve::Nonlinear(frequency::Every(1), 5, 1e-5), t_marginals_config, t_cmd_args.b_verbose);
 
     /*
     std::string file_path = "/home/amber/SLAM_plus_plus_v2.30/slam/data/manhattan_odometry.g2o";
@@ -745,3 +746,318 @@ bool TCommandLineArgs::Parse(int n_arg_num, const char **p_arg_list)
 
     return true;
 }
+
+
+/**
+ *	@brief prints all the important compiler / optimization switches this app was built with
+ */
+void DisplaySwitches()
+{
+#if defined(_M_X64) || defined(_M_AMD64) || defined(_M_IA64) || defined(__x86_64) || defined(__amd64) || defined(__ia64)
+    printf("SLAM++ version x64 (compiled at %s)\nbuilt with the following flags:\n", __DATE__);
+#else // _M_X64 || _M_AMD64 || _M_IA64 || __x86_64 || __amd64 || __ia64
+    printf("SLAM++ version x86 (compiled at %s)\nbuilt with the following flags:\n", __DATE__);
+#endif // _M_X64 || _M_AMD64 || _M_IA64 || __x86_64 || __amd64 || __ia64
+
+#ifdef _DEBUG
+    printf("%s\n", "_DEBUG");
+#endif // _DEBUG
+#ifdef __FAST_MATH__
+    printf("%s\n", "__FAST_MATH__");
+#endif // __FAST_MATH__
+#ifdef _OPENMP
+#pragma omp parallel
+#pragma omp master
+    {
+        printf("%s (%d threads)\n", "_OPENMP", omp_get_num_threads());
+    }
+#endif // _OPENMP
+
+#ifdef __USE_NATIVE_CHOLESKY
+    printf("%s\n", "__USE_NATIVE_CHOLESKY");
+#elif defined(__USE_CHOLMOD)
+    printf("%s\n", "__USE_CHOLMOD");
+#ifdef __CHOLMOD_SHORT
+	printf("%s\n", "__CHOLMOD_SHORT");
+#endif // __CHOLMOD_SHORT
+#else // __USE_CHOLMOD
+#ifdef __USE_CXSPARSE
+    printf("%s\n", "__USE_CXSPARSE");
+#ifdef __CXSPARSE_SHORT
+	printf("%s\n", "__CXSPARSE_SHORT");
+#endif // __CXSPARSE_SHORT
+#else // __USE_CXSPARSE
+    printf("%s\n", "__USE_CSPARSE");
+#endif // __USE_CXSPARSE
+#endif // __USE_CHOLMOD
+
+    const char *p_stacked_fmt[] = {"%s", ", %s", ",\n%s"},
+        *p_stacked_fmtB[] = {"%s=%d", ", %s=%d", ",\n%s=%d"};
+    const int n_stacking_cols = 3;
+    int n_stacked_fmt = 0;
+#define STACKED_FMT (p_stacked_fmt[(++ n_stacked_fmt - 1)? ((n_stacked_fmt - 1) % n_stacking_cols)? 1 : 2 : 0])
+#define STACKED_FMTB (p_stacked_fmtB[(++ n_stacked_fmt - 1)? ((n_stacked_fmt - 1) % n_stacking_cols)? 1 : 2 : 0])
+    // utility for stacking tokens into simple paragraphs
+
+#ifdef GPU_BLAS
+    printf("%s\n", "GPU_BLAS");
+#endif // GPU_BLAS
+
+#define MKSTRING(a) EXPANDSTRING(a)
+#define EXPANDSTRING(a) #a
+    printf(STACKED_FMT, "EIGEN_" MKSTRING(EIGEN_WORLD_VERSION) "." MKSTRING(EIGEN_MAJOR_VERSION)
+                        "." MKSTRING(EIGEN_MINOR_VERSION));
+    // always print Eigen version, now there are two to choose from
+
+#ifdef EIGEN_VECTORIZE
+    printf(STACKED_FMT, "EIGEN_VECTORIZE");
+#endif // EIGEN_VECTORIZE
+#ifdef EIGEN_UNALIGNED_VECTORIZE
+    printf(STACKED_FMTB, "EIGEN_UNALIGNED_VECTORIZE", int(EIGEN_UNALIGNED_VECTORIZE));
+#endif // EIGEN_UNALIGNED_VECTORIZE
+#ifdef EIGEN_VECTORIZE_SSE
+    printf(STACKED_FMT, "EIGEN_VECTORIZE_SSE");
+#endif // EIGEN_VECTORIZE_SSE
+#ifdef EIGEN_VECTORIZE_SSE2
+    printf(STACKED_FMT, "EIGEN_VECTORIZE_SSE2");
+#endif // EIGEN_VECTORIZE_SSE2
+#ifdef EIGEN_VECTORIZE_SSE3
+    printf(STACKED_FMT, "EIGEN_VECTORIZE_SSE3");
+#endif // EIGEN_VECTORIZE_SSE3
+#ifdef EIGEN_VECTORIZE_SSSE3
+    printf(STACKED_FMT, "EIGEN_VECTORIZE_SSSE3");
+#endif // EIGEN_VECTORIZE_SSSE3
+#ifdef EIGEN_VECTORIZE_SSE4_1
+    printf(STACKED_FMT, "EIGEN_VECTORIZE_SSE4_1");
+#endif // EIGEN_VECTORIZE_SSE4_1
+#ifdef EIGEN_VECTORIZE_SSE4_2
+    printf(STACKED_FMT, "EIGEN_VECTORIZE_SSE4_2");
+#endif // EIGEN_VECTORIZE_SSE4_2
+#ifdef EIGEN_VECTORIZE_FMA
+    printf(STACKED_FMT, "EIGEN_VECTORIZE_FMA");
+#endif // EIGEN_VECTORIZE_FMA
+#ifdef EIGEN_VECTORIZE_AVX
+    printf(STACKED_FMT, "EIGEN_VECTORIZE_AVX");
+#endif // EIGEN_VECTORIZE_AVX
+#ifdef EIGEN_VECTORIZE_AVX2
+    printf(STACKED_FMT, "EIGEN_VECTORIZE_AVX2");
+#endif // EIGEN_VECTORIZE_AVX2
+#ifdef EIGEN_VECTORIZE_AVX512
+    printf(STACKED_FMT, "EIGEN_VECTORIZE_AVX512");
+#endif // EIGEN_VECTORIZE_AVX512
+#ifdef EIGEN_VECTORIZE_AVX512DQ
+    printf(STACKED_FMT, "EIGEN_VECTORIZE_AVX512DQ");
+#endif // EIGEN_VECTORIZE_AVX512DQ
+#ifdef EIGEN_VECTORIZE_NEON
+    printf(STACKED_FMT, "EIGEN_VECTORIZE_NEON");
+#endif // EIGEN_VECTORIZE_NEON
+    if(n_stacked_fmt)
+        printf("\n");
+    // print Eigen flags stacked
+
+#ifdef __DISABLE_GPU
+    printf("%s\n", "__DISABLE_GPU");
+#endif // __DISABLE_GPU
+#ifdef __SCHUR_USE_DENSE_SOLVER
+    printf("%s\n", "__SCHUR_USE_DENSE_SOLVER");
+#endif // __SCHUR_USE_DENSE_SOLVER
+#ifdef __SCHUR_DENSE_SOLVER_USE_GPU
+    printf("%s\n", "__SCHUR_DENSE_SOLVER_USE_GPU");
+#endif // __SCHUR_DENSE_SOLVER_USE_GPU
+
+#ifdef __BLOCK_BENCH_DUMP_MATRIX_IMAGES
+    printf("%s\n", "__BLOCK_BENCH_DUMP_MATRIX_IMAGES");
+#endif // __BLOCK_BENCH_DUMP_MATRIX_IMAGES
+#ifdef __BLOCK_BENCH_BLOCK_TYPE_A
+    printf("%s\n", "__BLOCK_BENCH_BLOCK_TYPE_A");
+#else // __BLOCK_BENCH_BLOCK_TYPE_A
+    printf("%s\n", "__BLOCK_BENCH_BLOCK_TYPE_B"); // nonexistent, but want to know
+#endif // __BLOCK_BENCH_BLOCK_TYPE_A
+#ifdef __BLOCK_BENCH_CHOLESKY_USE_AMD
+    printf("%s\n", "__BLOCK_BENCH_CHOLESKY_USE_AMD");
+#endif // __BLOCK_BENCH_CHOLESKY_USE_AMD
+#ifdef __BLOCK_BENCH_DUMP_MATRICES_IN_MATLAB_FORMAT
+    printf("%s\n", "__BLOCK_BENCH_DUMP_MATRICES_IN_MATLAB_FORMAT");
+#endif // __BLOCK_BENCH_DUMP_MATRICES_IN_MATLAB_FORMAT
+#ifdef __BLOCK_ADD_UNIT_TEST_DUMP_MATRIX_IMAGES
+    printf("%s\n", "__BLOCK_ADD_UNIT_TEST_DUMP_MATRIX_IMAGES");
+#endif // __BLOCK_ADD_UNIT_TEST_DUMP_MATRIX_IMAGES
+#ifdef __BLOCK_MUL_UNIT_TEST_DUMP_MATRIX_IMAGES
+    printf("%s\n", "__BLOCK_MUL_UNIT_TEST_DUMP_MATRIX_IMAGES");
+#endif // __BLOCK_MUL_UNIT_TEST_DUMP_MATRIX_IMAGES
+
+#if 0 // this is not so interesting at this point (tuning the solvers, the matrix is stable)
+    #ifdef __UBER_BLOCK_MATRIX_SUPRESS_FBS
+	printf("%s\n", "__UBER_BLOCK_MATRIX_SUPRESS_FBS");
+#endif // __UBER_BLOCK_MATRIX_SUPRESS_FBS
+#ifdef __UBER_BLOCK_MATRIX_LAZY_PRODUCT
+	printf("%s\n", "__UBER_BLOCK_MATRIX_LAZY_PRODUCT");
+#endif // __UBER_BLOCK_MATRIX_LAZY_PRODUCT
+#ifdef __UBER_BLOCK_MATRIX_FBS_LAZY_PRODUCT
+	printf("%s\n", "__UBER_BLOCK_MATRIX_FBS_LAZY_PRODUCT");
+#endif // __UBER_BLOCK_MATRIX_FBS_LAZY_PRODUCT
+#ifdef __UBER_BLOCK_MATRIX_PERFCOUNTERS
+	printf("%s\n", "__UBER_BLOCK_MATRIX_PERFCOUNTERS");
+#endif // __UBER_BLOCK_MATRIX_PERFCOUNTERS
+#ifdef __UBER_BLOCK_MATRIX_MULTIPLICATION_MEMORY_DEBUGGING
+	printf("%s\n", "__UBER_BLOCK_MATRIX_MULTIPLICATION_MEMORY_DEBUGGING");
+#endif // __UBER_BLOCK_MATRIX_MULTIPLICATION_MEMORY_DEBUGGING
+#ifdef __UBER_BLOCK_MATRIX_MULTIPLICATION_LINEAR
+	printf("%s\n", "__UBER_BLOCK_MATRIX_MULTIPLICATION_LINEAR");
+#endif // __UBER_BLOCK_MATRIX_MULTIPLICATION_LINEAR
+#ifdef __UBER_BLOCK_MATRIX_HYBRID_AT_A
+	printf("%s\n", "__UBER_BLOCK_MATRIX_HYBRID_AT_A");
+#endif // __UBER_BLOCK_MATRIX_HYBRID_AT_A
+#ifdef __UBER_BLOCK_MATRIX_MULTIPLICATION_PREALLOCATES_BLOCK_LISTS
+	printf("%s\n", "__UBER_BLOCK_MATRIX_MULTIPLICATION_PREALLOCATES_BLOCK_LISTS");
+#endif // __UBER_BLOCK_MATRIX_MULTIPLICATION_PREALLOCATES_BLOCK_LISTS
+	printf("CUberBlockMatrix::map_Alignment = %d (%d, %d)\n", CUberBlockMatrix::map_Alignment,
+		CUberBlockMatrix::pool_MemoryAlignment, CUberBlockMatrix::_TyDenseAllocator::n_memory_align);
+#endif // 0
+#ifdef __UBER_BLOCK_MATRIX_MULTIPLICATION_GUSTAVSON
+    printf("%s\n", "__UBER_BLOCK_MATRIX_MULTIPLICATION_GUSTAVSON"); // this one is new (Q2 2017)
+#endif // __UBER_BLOCK_MATRIX_MULTIPLICATION_GUSTAVSON
+#ifdef __UBER_BLOCK_MATRIX_LEGACY_FBS_GEMM
+    printf("%s\n", "__UBER_BLOCK_MATRIX_LEGACY_FBS_GEMM"); // this one is new (Q2 2017)
+#endif // __UBER_BLOCK_MATRIX_LEGACY_FBS_GEMM
+#ifdef __UBER_BLOCK_MATRIX_ALIGN_BLOCK_MEMORY
+    printf("%s\n", "__UBER_BLOCK_MATRIX_ALIGN_BLOCK_MEMORY");
+#endif // __UBER_BLOCK_MATRIX_ALIGN_BLOCK_MEMORY
+
+#ifdef __SLAM_COUNT_ITERATIONS_AS_VERTICES
+    printf("%s\n", "__SLAM_COUNT_ITERATIONS_AS_VERTICES");
+#endif // __SLAM_COUNT_ITERATIONS_AS_VERTICES
+#ifdef __AUTO_UNARY_FACTOR_ON_VERTEX_ZERO
+    printf("%s\n", "__AUTO_UNARY_FACTOR_ON_VERTEX_ZERO");
+#endif // __AUTO_UNARY_FACTOR_ON_VERTEX_ZERO
+#ifdef __MATRIX_ORDERING_TWO_LEVEL_CONSTRAINT
+    printf("%s\n", "__MATRIX_ORDERING_TWO_LEVEL_CONSTRAINT");
+#endif // __MATRIX_ORDERING_TWO_LEVEL_CONSTRAINT
+#ifdef __MATRIX_ORDERING_CACHE_ALIGN
+    printf("%s\n", "__MATRIX_ORDERING_CACHE_ALIGN");
+#endif // __MATRIX_ORDERING_CACHE_ALIGN
+#ifdef __MATRIX_ORDERING_USE_AMD1
+    printf("%s\n", "__MATRIX_ORDERING_USE_AMD1");
+#endif // __MATRIX_ORDERING_USE_AMD1
+#ifdef __MATRIX_ORDERING_USE_AMD_AAT
+    printf("%s\n", "__MATRIX_ORDERING_USE_AMD_AAT");
+#endif // __MATRIX_ORDERING_USE_AMD_AAT
+#ifdef __MATRIX_ORDERING_USE_MMD
+    printf("%s\n", "__MATRIX_ORDERING_USE_MMD");
+#endif // __MATRIX_ORDERING_USE_MMD
+
+#ifdef __SEGREGATED_MAKE_CHECKED_ITERATORS
+    printf("%s\n", "__SEGREGATED_MAKE_CHECKED_ITERATORS");
+#endif // __SEGREGATED_MAKE_CHECKED_ITERATORS
+#ifdef __SEGREGATED_COMPILE_FAP_TESTS
+    printf("%s\n", "__SEGREGATED_COMPILE_FAP_TESTS");
+#endif // __SEGREGATED_COMPILE_FAP_TESTS
+
+#ifdef __FLAT_SYSTEM_USE_THUNK_TABLE
+    printf("%s\n", "__FLAT_SYSTEM_USE_THUNK_TABLE");
+#ifdef __FLAT_SYSTEM_STATIC_THUNK_TABLE
+    printf("%s\n", "__FLAT_SYSTEM_STATIC_THUNK_TABLE");
+#endif // __FLAT_SYSTEM_STATIC_THUNK_TABLE
+#endif // __FLAT_SYSTEM_USE_THUNK_TABLE
+#ifdef __FLAT_SYSTEM_ALIGNED_MEMORY
+    printf("%s\n", "__FLAT_SYSTEM_ALIGNED_MEMORY");
+#endif // __FLAT_SYSTEM_ALIGNED_MEMORY
+
+#ifdef __SE_TYPES_SUPPORT_A_SOLVERS
+    printf("%s\n", "__SE_TYPES_SUPPORT_A_SOLVERS");
+#endif // __SE_TYPES_SUPPORT_A_SOLVERS
+#ifdef __SE_TYPES_SUPPORT_LAMBDA_SOLVERS
+    printf("%s\n", "__SE_TYPES_SUPPORT_LAMBDA_SOLVERS");
+#endif // __SE_TYPES_SUPPORT_LAMBDA_SOLVERS
+#ifdef __SE_TYPES_SUPPORT_L_SOLVERS
+    printf("%s\n", "__SE_TYPES_SUPPORT_L_SOLVERS");
+#endif // __SE_TYPES_SUPPORT_L_SOLVERS
+
+#ifdef __BASE_TYPES_ALLOW_CONST_VERTICES
+    printf("%s\n", "__BASE_TYPES_ALLOW_CONST_VERTICES");
+#endif // __BASE_TYPES_ALLOW_CONST_VERTICES
+#ifdef __SLAM_APP_USE_CONSTANT_VERTICES
+    printf("%s\n", "__SLAM_APP_USE_CONSTANT_VERTICES");
+#endif // __SLAM_APP_USE_CONSTANT_VERTICES
+#ifdef __GRAPH_TYPES_ALIGN_OPERATOR_NEW
+#if defined(_MSC_VER) && !defined(__MWERKS__)
+#define MAKESTRING2(x) #x // msvc fails with a missing argument error when using double stringification
+#else // _MSC_VER && !__MWERKS__
+#define MAKESTRING(x) #x
+#define MAKESTRING2(x) MAKESTRING(x)
+#endif // _MSC_VER && !__MWERKS__
+    if(*MAKESTRING2(__GRAPH_TYPES_ALIGN_OPERATOR_NEW)) // if not an empty macro
+        printf("%s\n", "__GRAPH_TYPES_ALIGN_OPERATOR_NEW");
+#endif // __GRAPH_TYPES_ALIGN_OPERATOR_NEW
+#ifdef __BASE_TYPES_USE_ALIGNED_MATRICES
+    printf("%s\n", "__BASE_TYPES_USE_ALIGNED_MATRICES");
+#endif // __BASE_TYPES_USE_ALIGNED_MATRICES
+
+#ifdef __NONLINEAR_SOLVER_LAMBDA_DUMP_CHI2
+    printf("%s\n", "__NONLINEAR_SOLVER_LAMBDA_DUMP_CHI2");
+#endif // __NONLINEAR_SOLVER_LAMBDA_DUMP_CHI2
+#ifdef __LAMBDA_USE_V2_REDUCTION_PLAN
+    printf("%s\n", "__LAMBDA_USE_V2_REDUCTION_PLAN");
+#endif // __LAMBDA_USE_V2_REDUCTION_PLAN
+
+#ifdef __NONLINEAR_SOLVER_L_DUMP_TIMESTEPS
+    printf("%s\n", "__NONLINEAR_SOLVER_L_DUMP_TIMESTEPS");
+#endif // __NONLINEAR_SOLVER_L_DUMP_TIMESTEPS
+#ifdef __NONLINEAR_SOLVER_L_DUMP_CHI2
+    printf("%s\n", "__NONLINEAR_SOLVER_L_DUMP_CHI2");
+#ifdef __NONLINEAR_SOLVER_L_DUMP_CHI2_AT_LAST_EDGE
+	printf("%s\n", "__NONLINEAR_SOLVER_L_DUMP_CHI2_AT_LAST_EDGE");
+#endif // __NONLINEAR_SOLVER_L_DUMP_CHI2_AT_LAST_EDGE
+#endif // __NONLINEAR_SOLVER_L_DUMP_CHI2
+#ifdef __NONLINEAR_SOLVER_L_DUMP_DENSITY
+    printf("%s\n", "__NONLINEAR_SOLVER_L_DUMP_DENSITY");
+#endif // __NONLINEAR_SOLVER_L_DUMP_DENSITY
+#ifdef __NONLINEAR_SOLVER_L_DUMP_L_UPDATE_VARIANT_TIMES
+    printf("%s\n", "__NONLINEAR_SOLVER_L_DUMP_L_UPDATE_VARIANT_TIMES");
+#endif // __NONLINEAR_SOLVER_L_DUMP_L_UPDATE_VARIANT_TIMES
+#ifdef __NONLINEAR_SOLVER_L_DETAILED_TIMING
+    printf("%s\n", "__NONLINEAR_SOLVER_L_DETAILED_TIMING");
+#endif // __NONLINEAR_SOLVER_L_DETAILED_TIMING
+#ifdef __NONLINEAR_SOLVER_L_USE_SPARSE_BACKSUBST
+    printf("%s\n", "__NONLINEAR_SOLVER_L_USE_SPARSE_BACKSUBST");
+#endif // __NONLINEAR_SOLVER_L_USE_SPARSE_BACKSUBST
+#ifdef __NONLINEAR_SOLVER_L_USE_RESUMED_BACKSUBST
+    printf("%s\n", "__NONLINEAR_SOLVER_L_USE_RESUMED_BACKSUBST");
+#endif // __NONLINEAR_SOLVER_L_USE_RESUMED_BACKSUBST
+#ifdef __NONLINEAR_SOLVER_L_ENABLE_DENSE_CHOLESKY
+    printf("%s\n", "__NONLINEAR_SOLVER_L_ENABLE_DENSE_CHOLESKY");
+#endif // __NONLINEAR_SOLVER_L_ENABLE_DENSE_CHOLESKY
+
+#ifdef __NONLINEAR_SOLVER_FAST_L_BACKSUBSTITUTE_EACH_1
+    printf("%s\n", "__NONLINEAR_SOLVER_FAST_L_BACKSUBSTITUTE_EACH_1");
+#endif // __NONLINEAR_SOLVER_FAST_L_BACKSUBSTITUTE_EACH_1
+#ifdef __NONLINEAR_SOLVER_FAST_L_ALWAYS_L_UPDATE
+    printf("%s\n", "__NONLINEAR_SOLVER_FAST_L_ALWAYS_L_UPDATE");
+#endif // __NONLINEAR_SOLVER_FAST_L_ALWAYS_L_UPDATE
+#ifdef __NONLINEAR_SOLVER_FAST_L_VERIFY_PERM_FOLDING
+    printf("%s\n", "__NONLINEAR_SOLVER_FAST_L_VERIFY_PERM_FOLDING");
+#endif // __NONLINEAR_SOLVER_FAST_L_VERIFY_PERM_FOLDING
+#ifdef __NONLINEAR_SOLVER_FAST_L_DUMP_TIMESTEPS
+    printf("%s\n", "__NONLINEAR_SOLVER_FAST_L_DUMP_TIMESTEPS");
+#endif // __NONLINEAR_SOLVER_FAST_L_DUMP_TIMESTEPS
+#ifdef __NONLINEAR_SOLVER_FAST_L_DUMP_CHI2
+    printf("%s\n", "__NONLINEAR_SOLVER_FAST_L_DUMP_CHI2");
+#ifdef __NONLINEAR_SOLVER_FAST_L_DUMP_CHI2_AT_LAST_EDGE
+	printf("%s\n", "__NONLINEAR_SOLVER_FAST_L_DUMP_CHI2_AT_LAST_EDGE");
+#endif // __NONLINEAR_SOLVER_FAST_L_DUMP_CHI2_AT_LAST_EDGE
+#endif // __NONLINEAR_SOLVER_FAST_L_DUMP_CHI2
+#ifdef __NONLINEAR_SOLVER_FAST_L_DUMP_DENSITY
+    printf("%s\n", "__NONLINEAR_SOLVER_FAST_L_DUMP_DENSITY");
+#endif // __NONLINEAR_SOLVER_FAST_L_DUMP_DENSITY
+#ifdef __NONLINEAR_SOLVER_FAST_L_DUMP_L_UPDATE_VARIANT_TIMES
+    printf("%s\n", "__NONLINEAR_SOLVER_FAST_L_DUMP_L_UPDATE_VARIANT_TIMES");
+#endif // __NONLINEAR_SOLVER_FAST_L_DUMP_L_UPDATE_VARIANT_TIMES
+#ifdef __NONLINEAR_SOLVER_FAST_L_DETAILED_TIMING
+    printf("%s\n", "__NONLINEAR_SOLVER_FAST_L_DETAILED_TIMING");
+#endif // __NONLINEAR_SOLVER_FAST_L_DETAILED_TIMING
+#ifdef __NONLINEAR_SOLVER_FAST_L_ENABLE_DENSE_CHOLESKY
+    printf("%s\n", "__NONLINEAR_SOLVER_FAST_L_ENABLE_DENSE_CHOLESKY");
+#endif // __NONLINEAR_SOLVER_FAST_L_ENABLE_DENSE_CHOLESKY
+    printf("\n");
+}
+
