@@ -54,8 +54,6 @@ struct TCommandLineArgs {
     bool b_pose_only; /**< @brief optimize pose-only problems */
     bool b_use_SE3; /**< @brief process SE3 system @note This is not overriden in commandline but detected in peek-parsing. */
     const char *p_s_input_file; /**< @brief path to the data file */
-    const char *p_s_inlier_file; /**< @brief path to the inlier file */
-    const char *p_s_outlier_file; /**< @brief path to the outlier file */
     int n_max_lines_to_process; /**< @brief maximal number of lines to process */
     size_t n_linear_solve_each_n_steps; /**< @brief linear solve period, in steps (0 means disabled) */
     size_t n_nonlinear_solve_each_n_steps; /**< @brief nonlinear solve period, in steps (0 means disabled) */
@@ -67,7 +65,8 @@ struct TCommandLineArgs {
     const char *p_s_bench_type; /**< @brief benchmark type (only if b_run_matrix_benchmarks is set) */
     size_t n_omp_threads; /**< @brief OpenMP number of threads override */
     bool b_omp_dynamic; /**< @brief OpenMP dynamic scheduling override enable flag */
-    bool b_do_marginals; /**< @brief marginal covariance calculation enable flag */
+    //bool b_do_marginals; /**< @brief marginal covariance calculation enable flag */
+    // this would always be on since this is needed to predict objective value changes
     /**
      *	@brief selects default values for commandline args
      */
@@ -99,10 +98,10 @@ template <class CSystemType>
 bool load_graph(const char *fileName, CSystemType &system);
 
 template<class CSystemType, class CSolverType>
-bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & solver, int edge_nature, FILE * save_file, FILE * real_ofc_file, FILE * full_analysis_file, bool verbose);
+bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & solver, FILE * real_ofc_file, FILE * full_analysis_file, bool verbose);
 
 template<class CEdgeType, class CSolverType>
-void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverType &solver, int vertex_from, int vertex_to, FILE * full_analysis_file, double &del_obj_function, double &mi_gain);
+void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverType &solver, int vertex_from, int vertex_to, FILE * full_analysis_file, double &del_obj_function);
 
 void zero_offdiagonal(Eigen::MatrixXd &square_mat, int mat_size);
 

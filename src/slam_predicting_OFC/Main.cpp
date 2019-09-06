@@ -45,29 +45,15 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     {
 
         FILE *p_fr;
-        /*
+
         if((p_fr = fopen(t_cmd_args.p_s_input_file, "rb")))
             fclose(p_fr);
         else {
             fprintf(stderr, "error: can't open input file \'%s\'\n", t_cmd_args.p_s_input_file);
             return -1;
         }
-        if((p_fr = fopen(t_cmd_args.p_s_inlier_file, "rb")))
-            fclose(p_fr);
-        else {
-            fprintf(stderr, "error: can't open inlier file \'%s\'\n", t_cmd_args.p_s_inlier_file);
-            return -1;
-        }
-         */
-        if((p_fr = fopen(t_cmd_args.p_s_outlier_file, "rb")))
-            fclose(p_fr);
-        else {
-            fprintf(stderr, "error: can't open outlier file \'%s\'\n", t_cmd_args.p_s_outlier_file);
-            return -1;
-        }
     }
-    // see if the input is there; otherwise will get some misleading errors about peek-parsing
-    // and potentially about SE(2) (or other default solver) being disabled (if unlucky)
+    // see if the input is there;
 
     if(t_cmd_args.b_use_old_system) {
         fprintf(stderr, "error: the legacy solver was not compiled\n");
@@ -77,35 +63,14 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 
 
 
-    //typedef CLinearSolver_CholMod CLinearSolverType; // or cholmod
-
     CSystemType system;
     TIncrementalSolveSetting t_incremental_config = TIncrementalSolveSetting();
     TMarginalsComputationPolicy t_marginals_config = TMarginalsComputationPolicy( true, frequency::Never(), EBlockMatrixPart(mpart_Nothing), EBlockMatrixPart(mpart_LastColumn + mpart_Diagonal), mpart_Nothing);
 
     CNonlinearSolver_Lambda<CSystemType, CLinearSolverType> solver(system, t_incremental_config, t_marginals_config, t_cmd_args.b_verbose);
 
-    /*
-    std::string file_path = "/home/amber/SLAM_plus_plus_v2.30/slam/data/manhattan_odometry.g2o";
-    if(t_cmd_args.b_verbose)
-        fprintf(stderr, "Loading graph\n");
-    load_graph(t_cmd_args.p_s_input_file, system);
-    system.Plot2D("resultUnoptim.tga", plot_quality::plot_Printing); // plot in print quality
-
-    if(t_cmd_args.b_verbose)
-        fprintf(stderr, "Optimizing\n");
-    solver.Optimize();
-    // optimize the system
-
-    solver.r_MarginalCovariance().Dump_Diagonal();
-    system.Plot2D("result.tga", plot_quality::plot_Printing); // plot in print quality
-*/
-    std::string outlier_file = "/home/amber/SLAM_plus_plus_v2.30/slam/data/outlier.g2o";
     FILE * file = 0;
-    file = fopen(t_cmd_args.p_s_outlier_file, "r");
-
-    const char *save_file_name = "outlier_analysis.txt";
-    FILE * save_file = fopen(save_file_name, "w");
+    file = fopen(t_cmd_args.p_s_input_file, "r");
 
     const char *real_ofc_name = "real_ofc.txt";
     FILE * real_ofc_file = fopen(real_ofc_name, "w");
@@ -116,11 +81,10 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 
     if(file){
 
-        analyze_edge_set(file, system, solver, 1, save_file, real_ofc_file, full_analysis_file, t_cmd_args.b_verbose);
+        analyze_edge_set(file, system, solver, real_ofc_file, full_analysis_file, t_cmd_args.b_verbose);
 
     }// load one outlier and predict the objective function change
     fclose(file);
-    fclose(save_file);
     fclose(real_ofc_file);
     fclose(full_analysis_file);
 
@@ -129,21 +93,6 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 
 
     system.Plot2D("result.tga", plot_quality::plot_Printing); // plot in print quality
-/*
-    std::string inlier_file = "/home/amber/SLAM_plus_plus_v2.30/slam/data/inlier.g2o";
-    file = 0;
-    file = fopen(t_cmd_args.p_s_inlier_file, "r");
-
-    save_file_name = "inlier_analysis.txt";
-    save_file = fopen(save_file_name, "w");
-    if(file){
-
-        analyze_edge_set(file, system, solver, 0, save_file);
-
-    }// load one outlier and predict the objective function change
-    fclose(file);
-    fclose(save_file);
-    */
 
 
     solver.Dump(); // show some stats
@@ -178,8 +127,6 @@ void TCommandLineArgs::Defaults()
     b_use_SE3 = false; // note this is not overriden in commandline but detected in peek-parsing
 
     p_s_input_file = 0; /** <@brief path to the data file */
-    p_s_inlier_file = 0; /** <@brief path to the inlier file */
-    p_s_outlier_file = 0; /** <@brief path to the outlier file */
     n_max_lines_to_process = 0; /** <@brief maximal number of lines to process */
 
     n_linear_solve_each_n_steps = 0; /**< @brief linear solve period, in steps (0 means disabled) */
@@ -195,8 +142,6 @@ void TCommandLineArgs::Defaults()
 
     n_omp_threads = size_t(-1);
     b_omp_dynamic = false;
-
-    b_do_marginals = false;
 
 }
 
@@ -242,7 +187,6 @@ void PrintHelp()
            "--l-solver|-L     uses L solver\n"
            "--fast-l|-fL      uses the new fast L solver (preferred incremental solver)\n"
            "--use-schur|-us   uses Schur complement to accelerate linear solving\n"
-           "--do-marginals|-dm enables marginal covariance calculation (experimental)\n"
            "--infile|-i <filename>    specifies input file <filename>; it can cope with\n"
            "                  many file types and conventions\n"
            "--parse-lines-limit|-pll <N>    sets limit of lines read from the input file\n"
@@ -354,11 +298,10 @@ void zero_offdiagonal(Eigen::MatrixXd &square_mat, int mat_size)
 
     }
 
-
 }
 
 template<class CEdgeType, class CSolverType>
-void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverType &solver, int vertex_from, int vertex_to, FILE * full_analysis_file, double &del_obj_function, double &mi_gain)
+void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverType &solver, int vertex_from, int vertex_to, FILE * full_analysis_file, double &del_obj_function)
 {
     Eigen::Matrix3d r_t_jacobian0, r_t_jacobian1, cov_inv, innovation_cov;
     Eigen::Vector3d r_v_expectation, r_v_error;
@@ -368,16 +311,6 @@ void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverTy
     Eigen::MatrixXd joined_matrix(3,6);
     joined_matrix << - r_t_jacobian0, - r_t_jacobian1;
     Eigen::MatrixXd marginal_covariance(6,6);
-    Eigen::Matrix3d covariance_idfrom_zero_offdiagonal, covariance_idto_zero_offdiagonal, identity_block, zero_block;
-    covariance_idfrom_zero_offdiagonal <<   0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0;
-    covariance_idto_zero_offdiagonal <<   0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0;
-    zero_block <<   0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0;
 
     Eigen::MatrixXd covariance_idfrom(3,3), covariance_idto(3,3), covariance_idtofrom(3,3), covariance_idfromto(3,3);
     solver.r_MarginalCovariance().save_Diagonal(covariance_idfrom, vertex_from, vertex_from);
@@ -398,9 +331,8 @@ void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverTy
     //std::cout << "information norm: " << cov_inv.norm() << std::endl;
 
     del_obj_function = r_v_error.dot(cov_inv * r_v_error);
-    mi_gain = log(innovation_cov.determinant() / information.inverse().determinant());
-    fprintf(full_analysis_file, "%d %d %f %f %f %f\n", vertex_from, vertex_to, r_v_error.norm(), cov_inv.norm(), del_obj_function, mi_gain);
-
+    double mi_gain = log(innovation_cov.determinant() / information.inverse().determinant());
+    fprintf(full_analysis_file, "%d %d %lf %lf\n", vertex_from, vertex_to, del_obj_function, mi_gain);
 
 
 
@@ -476,7 +408,7 @@ double uStr2Double(const std::string & str)
 }
 
 template<class CSystemType, class CSolverType>
-bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & solver, int edge_nature, FILE * save_file, FILE * real_ofc_file, FILE * full_analysis_file, bool verbose)
+bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & solver, FILE * real_ofc_file, FILE * full_analysis_file, bool verbose)
 {
     CTimer t;
     double f_time_before, f_time_after;
@@ -539,19 +471,8 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
 
                 double before = solver.get_residual_chi2_error();
 
-                double delta_obj, mi;
-                calculate_ofc(new_edge, information, solver, vertex_from, vertex_to, full_analysis_file, delta_obj, mi);
-                fprintf(save_file, "%d %d %f\n", vertex_from, vertex_to, delta_obj);
-                if (edge_nature == 1)
-                {
-                    //std::cout << "OFC due to outlier: " << delta_obj << std::endl;
-                    //std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
-                }
-                else if (edge_nature == 0)
-                {
-                    //std::cout << "OFC due to inlier: " << delta_obj << std::endl;
-                    //std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
-                }
+                double delta_obj;
+                calculate_ofc(new_edge, information, solver, vertex_from, vertex_to, full_analysis_file, delta_obj);
 
                 system.r_Add_Edge(new_edge);
                 //solver.Optimize(5, 1e-5);
@@ -559,8 +480,6 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
                 //solver.Optimize(5, 1e-5);
                 //std::cout << "difference: " << after-before << std::endl;
                 //std::cout << "difference: " << solver.get_residual_error()- before << std::endl;
-
-
 
             }
             else{
@@ -604,8 +523,6 @@ bool TCommandLineArgs::Parse(int n_arg_num, const char **p_arg_list)
             b_no_show = true;
         else if(!strcmp(p_arg_list[i], "--no-commandline") || !strcmp(p_arg_list[i], "-nc"))
             b_show_commandline = false;
-        else if(!strcmp(p_arg_list[i], "--do-marginals") || !strcmp(p_arg_list[i], "-dm"))
-            b_do_marginals = true;
         else if(!strcmp(p_arg_list[i], "--lambda") || !strcmp(p_arg_list[i], "-,\\"))
             n_solver_choice = nlsolver_Lambda;
         else if(!strcmp(p_arg_list[i], "--lambda-lm") || !strcmp(p_arg_list[i], "-,\\lm"))
@@ -642,10 +559,6 @@ bool TCommandLineArgs::Parse(int n_arg_num, const char **p_arg_list)
             return false;
         } else if(!strcmp(p_arg_list[i], "--infile") || !strcmp(p_arg_list[i], "-i"))
             p_s_input_file = p_arg_list[++ i];
-        else if(!strcmp(p_arg_list[i], "-in"))
-            p_s_inlier_file = p_arg_list[++ i];
-        else if(!strcmp(p_arg_list[i], "-ou"))
-            p_s_outlier_file = p_arg_list[++ i];
         else if(!strcmp(p_arg_list[i], "--parse-lines-limit") || !strcmp(p_arg_list[i], "-pll"))
             n_max_lines_to_process = atol(p_arg_list[++ i]);
         else if(!strcmp(p_arg_list[i], "--linear-solve-period") || !strcmp(p_arg_list[i], "-lsp"))
