@@ -6,14 +6,8 @@
 #define SLAM_PLUS_PLUS_MAIN_H
 
 
-#include "slam/LinearSolver_UberBlock.h"
-#include "slam/LinearSolver_CholMod.h"
-//#include "slam/LinearSolver_Schur.h"
-//#include "slam/LinearSolver_CSparse.h"
-//#include "slam/LinearSolver_CXSparse.h" // linear solvers (only one is required)
 #include "slam/ConfigSolvers.h" // nonlinear graph solvers
-#include "slam/SE2_Types.h" // SE(2) types
-#include "slam/SE3_Types.h"
+
 #include "slam_app/ParsePrimitives.h"
 #include <list>
 
@@ -32,6 +26,7 @@ double uStr2Double(const std::string & str);
 std::list<std::string> uSplit(const std::string & str, char separator = ' ');
 template<class V>
 std::vector<V> uListToVector(const std::list<V> & list);
+
 
 /**
  *	@brief structure, containing values of all the commandline arguments
@@ -85,30 +80,5 @@ struct TCommandLineArgs {
 };
 
 
-typedef MakeTypelist(CVertexPose2D) TVertexTypelist;
-typedef MakeTypelist(CEdgePose2D) TEdgeTypelist;
-
-typedef CFlatS1ystem<CVertexPose2D, TVertexTypelist, CEdgePose2D, TEdgeTypelist> CSystemType;
-
-//typedef CLinearSolver_CholMod CLinearSolverType;
-
-typedef CLinearSolver_UberBlock<CSystemType::_TyHessianMatrixBlockList> CLinearSolverType;
-
-template <class CSystemType>
-bool load_graph(const char *fileName, CSystemType &system);
-
-template<class CSystemType, class CSolverType>
-bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & solver, FILE * real_ofc_file, FILE * full_analysis_file, bool verbose);
-
-template<class CEdgeType, class CSolverType>
-void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverType &solver, int vertex_from, int vertex_to, FILE * full_analysis_file, double &del_obj_function);
-
-void zero_offdiagonal(Eigen::MatrixXd &square_mat, int mat_size);
-
-
-/**
- *	@brief prints all the important compiler / optimization switches this app was built with
- */
-void DisplaySwitches();
 
 #endif //SLAM_PLUS_PLUS_MAIN_H
