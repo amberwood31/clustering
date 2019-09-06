@@ -88,7 +88,7 @@ struct TCommandLineArgs {
 typedef MakeTypelist(CVertexPose2D) TVertexTypelist;
 typedef MakeTypelist(CEdgePose2D) TEdgeTypelist;
 
-typedef CFlatS1ystem<CVertexPose2D, TVertexTypelist, CEdgePose2D, TEdgeTypelist> CSystemType;
+typedef CFlatSystem<CVertexPose2D, TVertexTypelist, CEdgePose2D, TEdgeTypelist> CSystemType;
 
 //typedef CLinearSolver_CholMod CLinearSolverType;
 
