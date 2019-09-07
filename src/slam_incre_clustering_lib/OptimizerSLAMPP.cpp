@@ -2,7 +2,7 @@
 // Created by amber on 2019-09-06.
 //
 
-#include "slam_incre_clustering_lib/Optimizer.h"
+#include "slam_incre_clustering_lib/OptimizerSLAMPP.h"
 
 #ifdef _OPENMP
 #include <omp.h>

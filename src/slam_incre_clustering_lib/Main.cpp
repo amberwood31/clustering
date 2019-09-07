@@ -4,7 +4,7 @@
 int n_dummy_param = 0;
 /**< @brief a dummy parameter, used as a convenient commandline input, intended for debugging / testing */
 #include "slam_incre_clustering_lib/utils.hpp"
-#include "slam_incre_clustering_lib/Optimizer.h"
+#include "slam_incre_clustering_lib/OptimizerSLAMPP.h"
 #include "slam_incre_clustering_lib/Main.h"
 #include <list>
 

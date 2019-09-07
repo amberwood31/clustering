@@ -2,8 +2,8 @@
 // Created by amber on 2019-09-06.
 //
 #pragma once
-#ifndef SLAM_PLUS_PLUS_OPTIMIZER_H
-#define SLAM_PLUS_PLUS_OPTIMIZER_H
+#ifndef SLAM_PLUS_PLUS_OPTIMIZERSLAMPP_H
+#define SLAM_PLUS_PLUS_OPTIMIZERSLAMPP_H
 
 #include "slam/ConfigSolvers.h" // nonlinear graph solvers
 
@@ -73,4 +73,4 @@ private:
 };
 
 
-#endif //SLAM_PLUS_PLUS_OPTIMIZER_H
+#endif //SLAM_PLUS_PLUS_OPTIMIZERSLAMPP_H
