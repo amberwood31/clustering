@@ -6,6 +6,7 @@ IF(COMMAND cmake_policy)
 	CMAKE_POLICY(SET CMP0014 OLD) # working on a secret project, are we? this helps to get rid of warnings
 ENDIF(COMMAND cmake_policy)
 
+
 PROJECT(SLAM_plus_plus)
 
 # dont ask me about those ...
@@ -45,7 +46,7 @@ OPTION(SLAM_P_P_BUILD_EXAMPLES "Build examples." TRUE)
 #IF(SLAM_P_P_BUILD_EXAMPLES)
 #	OPTION(SLAM_P_P_BUILD_TOMS_EXAMPLE "Build TOMS example (requires external libraries for benchmarking)." FALSE)
 #ENDIF(SLAM_P_P_BUILD_EXAMPLES)
-OPTION(SLAM_P_P_BUILD_MAIN_APP "Build SLAM++ main application." TRUE)
+OPTION(SLAM_P_P_BUILD_MAIN_APP "Build SLAM++ main application." FALSE)
 IF(SLAM_P_P_BUILD_MAIN_APP)
 	OPTION(SLAM_P_P_MAIN_APP_UNIT_TESTS "Enable SLAM++ built-in unit tests (in the main application)." FALSE)
 	OPTION(SLAM_P_P_MAIN_APP_PERF_TESTS "Enable SLAM++ built-in perf tests (in the main application)." FALSE)
@@ -181,6 +182,7 @@ ENDIF(SLAM_P_P_USE_OPENMP)
 # switch to Eigen 3.3
 OPTION(SLAM_P_P_EIGEN33 "Use Eigen 3.3 with the AVX instruction set support (not always faster)." FALSE)
 IF(SLAM_P_P_EIGEN33)
+	message("check eigen version: EIGEN33")
 	OPTION(EIGEN_UNALIGNED_VECTORIZE "Vectorize also unaligned vectors and matrices (Eigen 3.3 only)." TRUE)
 	IF(EIGEN_UNALIGNED_VECTORIZE)
 		ADD_DEFINITIONS(-DEIGEN_UNALIGNED_VECTORIZE=1)
@@ -190,6 +192,7 @@ IF(SLAM_P_P_EIGEN33)
 
 	mark_as_advanced(CLEAR EIGEN_UNALIGNED_VECTORIZE) # unhide
 ELSE(SLAM_P_P_EIGEN33)
+	message("check eigen version: NOT EIGEN33")
 	mark_as_advanced(FORCE EIGEN_UNALIGNED_VECTORIZE) # hide from the user but do not delete from cache
 ENDIF(SLAM_P_P_EIGEN33)
 
@@ -538,6 +541,7 @@ ENDIF(SLAM_P_P_SHORT_CHOLMOD AND CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT SLAM_P_P_32
 
 # Include project headers.
 IF(SLAM_P_P_EIGEN33)
+	MESSAGE("USE EIGEN33")
 	INCLUDE_DIRECTORIES(
 	  ${CUDA_INCLUDE_IFENABLED}
 	  ${PROJECT_SOURCE_DIR}/include/
@@ -548,6 +552,7 @@ IF(SLAM_P_P_EIGEN33)
 	  ${PROJECT_SOURCE_DIR}/external/g2o/
 	  ${PROJECT_SOURCE_DIR}/include/cholmod/SuiteSparse/)
 ELSE(SLAM_P_P_EIGEN33)
+	MESSAGE("USE EIGEN32")
 	INCLUDE_DIRECTORIES(
 	  ${CUDA_INCLUDE_IFENABLED}
 	  ${PROJECT_SOURCE_DIR}/include/
@@ -605,3 +610,7 @@ ELSE(CMAKE_BUILD_TYPE STREQUAL "Debug")
 ENDIF(CMAKE_BUILD_TYPE STREQUAL "Debug")
 message(STATUS "CMAKE_EXE_LINKER_FLAGS = ${CMAKE_EXE_LINKER_FLAGS}" )
 MESSAGE(STATUS "OpenMP_C_FLAGS = ${OpenMP_C_FLAGS}")
+
+MESSAGE("CHECK EIGEN VERSION SLAM_P_P_EIGEN33: ${SLAM_P_P_EIGEN33}")
+FIND_PACKAGE(GTSAM)
+MESSAGE("check find gtsam: ${GTSAM_FOUND}")

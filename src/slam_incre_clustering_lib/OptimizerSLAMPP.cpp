@@ -6,7 +6,7 @@
 #ifdef _OPENMP
 #include <omp.h>
 #endif // _OPENMP
-#include "slam_pp/ConfigSolvers.h" // nonlinear graph solvers
+#include "slam/ConfigSolvers.h" // nonlinear graph solvers
 #include "slam/LinearSolver_UberBlock.h"
 #include "slam/LinearSolver_CholMod.h"
 //#include "slam/LinearSolver_Schur.h"
