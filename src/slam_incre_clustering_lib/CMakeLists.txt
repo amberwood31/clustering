@@ -40,7 +40,7 @@ ENDIF(SLAM_P_P_LINEAR_SOLVER_TYPE)
 
 
 # Build static library
-ADD_LIBRARY(${STATICLIB_NAME} STATIC OptimizerSLAMPP.cpp)
+ADD_LIBRARY(${STATICLIB_NAME} SHARED OptimizerSLAMPP.cpp)
 SET_TARGET_PROPERTIES(${STATICLIB_NAME} PROPERTIES PUBLIC_HEADER "${SLAM_EXAMPLE_HEADERS}")
 
 ADD_EXECUTABLE(${SLAM_EXAMPLE_STATICLIB_NAME} Main.cpp ${SLAM_EXAMPLE_HEADERS})
@@ -54,4 +54,29 @@ INSTALL(TARGETS ${STATICLIB_NAME}
         LIBRARY DESTINATION lib/slam_pp
 	ARCHIVE DESTINATION lib/slam_pp
         PUBLIC_HEADER DESTINATION include/slam_pp)
+#message("check content:  ${SLAM_EXAMPLE_LIBRARIES}")
+#message("check location: ${CMAKE_BINARY_DIR}")
+#SET(COMBINED_LIB ${CMAKE_BINARY_DIR}/libcombi.a)
+#add_custom_target(combined
+#        COMMAND ar -x /home/amber/stew/slam++/lib/lib${STATICLIB_NAME}.a#
+#	COMMAND ar -x /home/amber/stew/slam++/lib/libslampp_base.a
+# 	COMMAND ar -x /home/amber/stew/slam++/lib/libcsparse.a
+#        COMMAND ar -x /home/amber/stew/slam++/lib/libcxsparse.a#
+#	COMMAND ar -x /home/amber/stew/slam++/lib/libcholmod.a
+#	COMMAND ar -x /home/amber/stew/slam++/lib/libeigen.a
+#        COMMAND ar -qcs ${COMBINED_LIB} *.o
+#        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+#        DEPENDS ${STATICLIB_NAME} ${SLAM_EXAMPLE_LIBRARIES}
+#        )
+
+#add_library(c STATIC IMPORTED GLOBAL)
+#add_dependencies(c combined)
+
+#set_target_properties(c
+#        PROPERTIES
+#        IMPORTED_LOCATION ${COMBINED_LIB}
+#        )
+
+#ADD_EXECUTABLE(${SLAM_EXAMPLE_STATICLIB_NAME}_test Main.cpp ${SLAM_EXAMPLE_HEADERS})
+#target_link_libraries(${SLAM_EXAMPLE_STATICLIB_NAME}_test c)
 

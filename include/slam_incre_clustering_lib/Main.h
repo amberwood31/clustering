@@ -79,6 +79,6 @@ struct TCommandLineArgs {
 
 };
 
-
+void DisplaySwitches();
 
 #endif //SLAM_PLUS_PLUS_MAIN_H

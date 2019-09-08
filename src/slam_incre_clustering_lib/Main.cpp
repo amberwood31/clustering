@@ -4,8 +4,9 @@
 int n_dummy_param = 0;
 /**< @brief a dummy parameter, used as a convenient commandline input, intended for debugging / testing */
 #include "slam_incre_clustering_lib/utils.hpp"
-#include "slam_incre_clustering_lib/OptimizerSLAMPP.h"
 #include "slam_incre_clustering_lib/Main.h"
+#include "slam_incre_clustering_lib/OptimizerSLAMPP.h"
+
 #include <list>
 
 
@@ -21,6 +22,7 @@ int n_dummy_param = 0;
  */
 int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 {
+    DisplaySwitches();
 
     CTimer t;
     double start, end;

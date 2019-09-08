@@ -1,4 +1,5 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.4)
+MESSAGE("CHECK CMAKE VERSION: ${CMAKE_VERSION}")
 IF(COMMAND cmake_policy)
 	CMAKE_POLICY(SET CMP0003 NEW)
 	CMAKE_POLICY(SET CMP0012 NEW) # silence the FindOpenMP if(true) warning
@@ -193,8 +194,9 @@ ELSE(SLAM_P_P_EIGEN33)
 ENDIF(SLAM_P_P_EIGEN33)
 
 # compile for native architecture, might run faster (makes a potentially less portable binary)
+# don't compile for native architecture, to be compatible with rtabmap (due to PCL definitions don't contain "-march-native"
 IF(UNIX AND NOT APPLE)
-	OPTION(SLAM_P_P_USE_MARCH_NATIVE "Use native architecture (-march=native)." TRUE)
+	OPTION(SLAM_P_P_USE_MARCH_NATIVE "Use native architecture (-march=native)." FALSE) 
 	IF(SLAM_P_P_USE_MARCH_NATIVE)
 		SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -march=native")
 		SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -march=native")

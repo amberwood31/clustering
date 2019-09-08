@@ -5,9 +5,10 @@
 #ifndef SLAM_PLUS_PLUS_OPTIMIZERSLAMPP_H
 #define SLAM_PLUS_PLUS_OPTIMIZERSLAMPP_H
 
-#include "slam/ConfigSolvers.h" // nonlinear graph solvers
+//
 
-#include "slam/SE2_Types.h" // SE(2) types
+//#include "slam_pp/SE2_Types.h" // SE(2) types
+
 
 /**
  *	@brief SLAM++ slam optimizer interface
