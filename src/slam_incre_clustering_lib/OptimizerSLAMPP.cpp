@@ -245,7 +245,7 @@ double CSLAMOptimizer::Calculate_Ofc(FILE *full_analysis_file) {
 
     double del_obj_function = r_v_error.dot(cov_inv * r_v_error);
     //double mi_gain = log(innovation_cov.determinant() / information.inverse().determinant());// TODO_LOCAL: maybe this increases the processing time?
-    fprintf(full_analysis_file, "%d %d %lf\n", m_p_optimizer->vertex_from, m_p_optimizer->vertex_to, del_obj_function);
+    fprintf(full_analysis_file, "%d %d %lf", m_p_optimizer->vertex_from, m_p_optimizer->vertex_to, del_obj_function);
 
 
     return del_obj_function;

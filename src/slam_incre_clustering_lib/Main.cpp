@@ -125,10 +125,13 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
                     optimizer.Enable_Optimization(); //enable optimization when there is a LC edge
 
                     double delta_obj = optimizer.Calculate_Ofc(full_analysis_file);
+                    int dof = 2 * 1; // difference between previous iteration, instead of the current dof
+                    // multiplied by 2 in 2D cases
+                    double evil_scale = utils::p(delta_obj, dof);
+                    fprintf(full_analysis_file, " %lf\n", evil_scale);
 
                     {   // use chi2 difference test
-                        int dof = 2 * 1; // difference between previous iteration, instead of the current dof
-                        // multiplied by 2 in 2D cases
+
 
                         if (delta_obj < utils::chi2(dof))
                         {
@@ -149,7 +152,6 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
                         }
                         else
                         {
-                            double evil_scale = utils::p(delta_obj, dof);
                             std::cout << " " << std::endl; // add empty line to indicate clustering
                             std::cout << "edge: " << vertex_from << " "  << vertex_to << " " << evil_scale << std::endl;
 
