@@ -125,8 +125,8 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
                     optimizer.Enable_Optimization(); //enable optimization when there is a LC edge
 
                     double delta_obj = optimizer.Calculate_Ofc(full_analysis_file);
-                    int dof = 2 * 1; // difference between previous iteration, instead of the current dof
-                    // multiplied by 2 in 2D cases
+                    int dof = 3 * 1; // difference between previous iteration, instead of the current dof
+                    // multiplied by 3 in 2D cases
                     double evil_scale = utils::p(delta_obj, dof);
                     fprintf(full_analysis_file, " %lf\n", evil_scale);
 
