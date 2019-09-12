@@ -43,7 +43,7 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     }
     // display commandline
 
-    CSLAMOptimizer optimizer(t_cmd_args.b_verbose);
+    CSLAMOptimizer optimizer(t_cmd_args.b_verbose, false, 5, 1e-5);
 
     {
 
@@ -127,13 +127,13 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
                     double delta_obj = optimizer.Calculate_Ofc(full_analysis_file);
                     int dof = 3 * 1; // difference between previous iteration, instead of the current dof
                     // multiplied by 3 in 2D cases
-                    double evil_scale = utils::p(delta_obj, dof);
+                    double evil_scale = utils::p(fabs(delta_obj), dof);  // handle negative value
                     fprintf(full_analysis_file, " %lf\n", evil_scale);
 
                     {   // use chi2 difference test
 
 
-                        if (delta_obj < utils::chi2(dof))
+                        if (fabs(delta_obj) < utils::chi2(dof)) // there could be negative delta_obj?
                         {
                             std::cout << "edge: " << vertex_from << " "  << vertex_to << std::endl;
                             optimizer.Increment_Once(); // incrementally solve
