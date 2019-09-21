@@ -24,4 +24,4 @@ cd ../../test_backend/
 mkdir slampp_"$FILENAME"_"$OUTLIER_STRATETY"
 cd ../slam++/bin/
 cp clustering_output_*.txt clustering_analysis_*.txt output_*.txt full_analysis_*.txt combined_score_plot_*.png ../../test_backend/slampp_"$FILENAME"_"$OUTLIER_STRATETY"
-cp ../../test_backend/analysis_chamber/batch_slampp_plot.sh ../../test_backend/slampp_"$FILENAME"_"$OUTLIER_STRATETY"
+cp ../../test_backend/analysis_chamber/batch_slampp_plot.sh ../../test_backend/analysis_chamber/plot_g2o_slampp.py ../../test_backend/slampp_"$FILENAME"_"$OUTLIER_STRATETY"
