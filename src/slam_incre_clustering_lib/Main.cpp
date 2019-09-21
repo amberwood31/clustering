@@ -70,6 +70,27 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     const char *full_analysis_name = "full_analysis.txt";
     FILE * full_analysis_file = fopen(full_analysis_name, "w");
 
+    // spatial clustering
+    IntPairSet loops;
+    LoadLoopClosures(t_cmd_args.p_s_input_file, loops);
+
+    Clusterizer clusterizer;
+    clusterizer.clusterize(loops, t_cmd_args.n_spatial_clustering_threshold);
+
+    std::cout<<"Number of Clusters found : "<<clusterizer.clusterCount()<<std::endl;
+    std::cout<<"print all clusters: " << std::endl;
+    for(size_t i=0; i< clusterizer.clusterCount(); i++)
+    {
+        IntPairSet tempset = clusterizer.getClusterByID(i);
+        for (IntPairSet::iterator temppair = tempset.begin(); temppair != tempset.end(); temppair++)
+        {
+            std::cout<<i<<": " << temppair->first << " " << temppair->second << std::endl;
+        }
+
+    }
+    
+
+
 
     if(file){
 
@@ -233,7 +254,62 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     return 0;
 }
 
+bool LoadLoopClosures(const char* file_name, IntPairSet& loops)
+{
+    FILE * file = fopen(file_name, "r");
+    if (file)
+    {
+        char line[400];
+        while ( fgets (line , 400 , file) != NULL )
+        {
+            std::vector<std::string> strList = uListToVector(uSplit(uReplaceChar(line, '\n', ' '), ' '));
+            if(strList.size() == 30)
+            {
+                //EDGE_SE3:QUAT
+                /*int idFrom = atoi(strList[1].c_str());
+                int idTo = atoi(strList[2].c_str());
+                float x = uStr2Float(strList[3]);
+                float y = uStr2Float(strList[4]);
+                float z = uStr2Float(strList[5]);
+                float roll = uStr2Float(strList[6]);
+                float pitch = uStr2Float(strList[7]);
+                float yaw = uStr2Float(strList[8]);
+                Eigen::Matrix<double, 6, 1> edge;
+                edge << x, y, z, roll, pitch, yaw;
 
+                system.r_Add_Edge(CEdgePose3D(idFrom, idTo, edge, information, system));
+                 */
+            }
+            else if(strList.size() == 12)
+            {
+                //EDGE_SE2
+                int vertex_from = atoi(strList[1].c_str());
+                int vertex_to = atoi(strList[2].c_str());
+
+                if ((vertex_to - vertex_from) != 1) // if reached loop closure edge
+                {
+                    loops.insert(IntPair(vertex_from, vertex_to));
+                    //loopclosureEdges[IntPair(e1,e2)] = *eIt;
+
+                }
+
+            }
+            else if(strList.size())
+            {
+                fprintf(stderr, "Error parsing graph file");
+            }
+        }
+
+        return true;
+
+    } else
+    {
+        std::cout<< "Please specify input file" << std::endl;
+        return false;
+    }
+
+
+}
 
 void TCommandLineArgs::Defaults()
 {
@@ -261,6 +337,7 @@ void TCommandLineArgs::Defaults()
 
     p_s_input_file = 0; /** <@brief path to the data file */
     n_max_lines_to_process = 0; /** <@brief maximal number of lines to process */
+    n_spatial_clustering_threshold = 50;
 
     n_linear_solve_each_n_steps = 0; /**< @brief linear solve period, in steps (0 means disabled) */
     n_nonlinear_solve_each_n_steps = 0; /**< @brief nonlinear solve period, in steps (0 means disabled) */

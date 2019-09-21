@@ -10,6 +10,8 @@
 
 #include "slam_app/ParsePrimitives.h"
 #include <list>
+#include "rrr/cluster.hpp"
+
 
 /*#include "rtabmap/utilite/ULogger.h"
 #include <rtabmap/utilite/UStl.h>
@@ -50,6 +52,7 @@ struct TCommandLineArgs {
     bool b_use_SE3; /**< @brief process SE3 system @note This is not overriden in commandline but detected in peek-parsing. */
     const char *p_s_input_file; /**< @brief path to the data file */
     int n_max_lines_to_process; /**< @brief maximal number of lines to process */
+    int n_spatial_clustering_threshold;
     size_t n_linear_solve_each_n_steps; /**< @brief linear solve period, in steps (0 means disabled) */
     size_t n_nonlinear_solve_each_n_steps; /**< @brief nonlinear solve period, in steps (0 means disabled) */
     size_t n_max_nonlinear_solve_iteration_num; /**< @brief maximal number of iterations in nonlinear solve step */
@@ -80,5 +83,7 @@ struct TCommandLineArgs {
 };
 
 void DisplaySwitches();
+
+bool LoadLoopClosures(const char* file_name, IntPairSet& loops);
 
 #endif //SLAM_PLUS_PLUS_MAIN_H
