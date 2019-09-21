@@ -34,6 +34,7 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
         return -1;
     // parse commandline
 
+    const char* p_output_file = "output.txt";
 
     if(t_cmd_args.b_show_commandline) {
         printf("> ./SLAM_plus_plus");
@@ -224,6 +225,8 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     printf("\nthe whole process took %f sec\n", end-start);
 
     optimizer.Generate_plot();
+
+    optimizer.Dump_State(p_output_file);
 
     optimizer.Show_Stats(); // show some stats
 
