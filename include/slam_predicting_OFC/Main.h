@@ -16,6 +16,8 @@
 #include "slam/SE3_Types.h"
 #include "slam_app/ParsePrimitives.h"
 #include <list>
+#include "rrr/types.hpp"
+
 
 /*#include "rtabmap/utilite/ULogger.h"
 #include <rtabmap/utilite/UStl.h>
@@ -55,6 +57,7 @@ struct TCommandLineArgs {
     bool b_use_SE3; /**< @brief process SE3 system @note This is not overriden in commandline but detected in peek-parsing. */
     const char *p_s_input_file; /**< @brief path to the data file */
     int n_max_lines_to_process; /**< @brief maximal number of lines to process */
+    int n_spatial_clustering_threshold;
     size_t n_linear_solve_each_n_steps; /**< @brief linear solve period, in steps (0 means disabled) */
     size_t n_nonlinear_solve_each_n_steps; /**< @brief nonlinear solve period, in steps (0 means disabled) */
     size_t n_max_nonlinear_solve_iteration_num; /**< @brief maximal number of iterations in nonlinear solve step */
@@ -98,8 +101,7 @@ template <class CSystemType>
 bool load_graph(const char *fileName, CSystemType &system);
 
 template<class CSystemType, class CSolverType>
-bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & solver, FILE * real_ofc_file, FILE * full_analysis_file, bool verbose);
-
+bool analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverType * solver, FILE * full_analysis_file, IntPairSet& cluster, bool verbose);
 template<class CEdgeType, class CSolverType>
 void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverType &solver, int vertex_from, int vertex_to, FILE * full_analysis_file, double &del_obj_function);
 
@@ -110,5 +112,7 @@ void zero_offdiagonal(Eigen::MatrixXd &square_mat, int mat_size);
  *	@brief prints all the important compiler / optimization switches this app was built with
  */
 void DisplaySwitches();
+bool LoadLoopClosures(const char* file_name, IntPairSet& loops);
+
 
 #endif //SLAM_PLUS_PLUS_MAIN_H
