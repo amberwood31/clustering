@@ -478,10 +478,10 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & so
                 calculate_ofc(new_edge, information, solver, vertex_from, vertex_to, full_analysis_file, delta_obj);
 
                 {   // use chi2 difference test
-                    int dof = 2 * 1; // difference between previous iteration, instead of the current dof
-                    // multiplied by 2 in 2D cases
+                    int dof = 3 * 1; // difference between previous iteration, instead of the current dof
+                    // multiplied by 3 in 2D cases
 
-                    if (delta_obj < utils::chi2(dof))
+                    if (fabs(delta_obj) < utils::chi2(dof))
                     {
                         std::cout << "edge: " << vertex_from << " "  << vertex_to << std::endl;
                         solver.Incremental_Step(system.r_Add_Edge(new_edge)); // incrementally solve
