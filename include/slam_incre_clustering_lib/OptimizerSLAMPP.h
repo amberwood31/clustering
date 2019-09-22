@@ -4,6 +4,7 @@
 #pragma once
 #ifndef SLAM_PLUS_PLUS_OPTIMIZERSLAMPP_H
 #define SLAM_PLUS_PLUS_OPTIMIZERSLAMPP_H
+#include "rrr/types.hpp"
 
 //
 
@@ -59,6 +60,8 @@ public:
     bool Dump_State(const char *p_s_filename) const;
 
     void Generate_plot() const;
+
+    void Loop_over_cluster(const IntPairSet& loops);
 
 
 /**

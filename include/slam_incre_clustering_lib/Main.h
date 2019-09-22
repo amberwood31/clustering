@@ -11,6 +11,8 @@
 #include "slam_app/ParsePrimitives.h"
 #include <list>
 #include "rrr/cluster.hpp"
+#include "slam_incre_clustering_lib/OptimizerSLAMPP.h"
+
 
 
 /*#include "rtabmap/utilite/ULogger.h"
@@ -85,5 +87,9 @@ struct TCommandLineArgs {
 void DisplaySwitches();
 
 bool LoadLoopClosures(const char* file_name, IntPairSet& loops);
+
+
+bool analyze_edge_set(FILE * file_pointer, CSLAMOptimizer * p_optimizer, FILE * full_analysis_file, IntPairSet& cluster, bool verbose);
+//load only the lc edges in cluster
 
 #endif //SLAM_PLUS_PLUS_MAIN_H

@@ -5,7 +5,6 @@ int n_dummy_param = 0;
 /**< @brief a dummy parameter, used as a convenient commandline input, intended for debugging / testing */
 #include "slam_incre_clustering_lib/utils.hpp"
 #include "slam_incre_clustering_lib/Main.h"
-#include "slam_incre_clustering_lib/OptimizerSLAMPP.h"
 
 #include <list>
 
@@ -44,7 +43,6 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     }
     // display commandline
 
-    CSLAMOptimizer optimizer(t_cmd_args.b_verbose, false, 5, 1e-5);
 
     {
 
@@ -88,157 +86,28 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
         }
 
     }
-    
+
+    CSLAMOptimizer optimizer(t_cmd_args.b_verbose, false, 5, 1e-5);
+    CSLAMOptimizer * p_optimizer= & optimizer;
 
 
-
-    if(file){
-
-        // analyze the edge
-
-        CTimer t;
-        double f_time_before, f_time_after;
-
-        char line[400];
-        while ( fgets (line , 400 , file) != NULL )
+    if (file)
+    {
+        for (size_t i=0; i< clusterizer.clusterCount();i++) // TODO_LOCAL: this is obviously not efficient, think about refactoring
         {
-            f_time_before= t.f_Time();
-            optimizer.Delay_Optimization(); //don't start optimizing right away
-            std::vector<std::string> strList = uListToVector(uSplit(uReplaceChar(line, '\n', ' '), ' '));
-            if(strList.size() == 30)
-            {
-                //EDGE_SE3:QUAT
-                /*int idFrom = atoi(strList[1].c_str());
-                int idTo = atoi(strList[2].c_str());
-                float x = uStr2Float(strList[3]);
-                float y = uStr2Float(strList[4]);
-                float z = uStr2Float(strList[5]);
-                float roll = uStr2Float(strList[6]);
-                float pitch = uStr2Float(strList[7]);
-                float yaw = uStr2Float(strList[8]);
-                Eigen::Matrix<double, 6, 1> edge;
-                edge << x, y, z, roll, pitch, yaw;
+            std::cout << "Analyzing cluster " << i << std::endl;
+            IntPairSet cluster_i = clusterizer.getClusterByID(i);
+            std::cout <<"Got cluster" << std::endl;
+            analyze_edge_set(file, p_optimizer, full_analysis_file, cluster_i, t_cmd_args.b_verbose);
+            std::cout << " " << std::endl; //add empty line to indicate the end of one cluster
+            rewind(file);
+            CSLAMOptimizer optimizer_new(t_cmd_args.b_verbose, false, 5, 1e-5);
+            p_optimizer = & optimizer_new;
 
-                system.r_Add_Edge(CEdgePose3D(idFrom, idTo, edge, information, system));
-                 */
-            }
-            else if(strList.size() == 12)
-            {
-                //EDGE_SE2
-                int vertex_from = atoi(strList[1].c_str());
-                int vertex_to = atoi(strList[2].c_str());
-                double x = uStr2Double(strList[3]);
-                double y = uStr2Double(strList[4]);
-                double rot = uStr2Double(strList[5]);
-
-                Eigen::MatrixXd information(3,3);
-                information << uStr2Double(strList[6]), uStr2Double(strList[7]), uStr2Double(strList[8]),
-                    uStr2Double(strList[7]), uStr2Double(strList[9]), uStr2Double(strList[10]),
-                    uStr2Double(strList[8]), uStr2Double(strList[10]), uStr2Double(strList[11]);
-
-                optimizer.Load_New_Edge(vertex_from, vertex_to, x, y, rot, information);
-
-                if ((vertex_to - vertex_from) != 1) // if reached loop closure edge
-                {
-
-                    //solver.Optimize(5, 1e-5);
-
-                    //double before = solver.get_residual_chi2_error();
-                    optimizer.Enable_Optimization(); //enable optimization when there is a LC edge
-
-                    double delta_obj = optimizer.Calculate_Ofc(full_analysis_file);
-                    int dof = 3 * 1; // difference between previous iteration, instead of the current dof
-                    // multiplied by 3 in 2D cases
-                    double evil_scale = utils::p(fabs(delta_obj), dof);  // handle negative value
-                    fprintf(full_analysis_file, " %lf\n", evil_scale);
-
-                    {   // use chi2 difference test
-
-
-                        if (fabs(delta_obj) < utils::chi2(dof)) // there could be negative delta_obj?
-                        {
-                            std::cout << "edge: " << vertex_from << " "  << vertex_to << std::endl;
-                            optimizer.Increment_Once(); // incrementally solve
-
-                            if (t_cmd_args.b_verbose == true)
-                            {
-                                std::cout << "ofc: " << delta_obj << std::endl;
-                                //std::cout << "mi: " << mi_gain << std::endl;
-                                f_time_after= t.f_Time();
-                                printf("this iteration took %f sec\n", f_time_after-f_time_before);
-
-                            }
-
-
-
-                        }
-                        else
-                        {
-                            std::cout << " " << std::endl; // add empty line to indicate clustering
-                            std::cout << "edge: " << vertex_from << " "  << vertex_to << " " << evil_scale << std::endl;
-
-                            if (t_cmd_args.b_verbose == true)
-                            {
-                                std::cout << "ofc: " << delta_obj << std::endl;
-                                //std::cout << "mi: " << mi_gain << std::endl;
-
-                                //std::cout << "inverse check p: " << utils::p(delta_obj, dof) << std::endl;
-                                //std::cout << "clearing all existing LC edges" << std::endl;
-
-                                f_time_after= t.f_Time();
-                                printf("this iteration took %f sec\n", f_time_after-f_time_before);
-
-                            }
-                            std::cout << " " << std::endl; // add empty line to indicate clustering
-
-                            //printf("\nwhole solving took " PRItimeprecise " (%f sec)\n", PRItimeparams(f_time), f_time);
-                            //printf("\nnumber of edges: %ld\n", system->n_Edge_Num());
-                            /*printf("solver spent %f seconds in marginals\n"
-                                   "\t chol: %f\n"
-                                   "\tmargs: %f\n"
-                                   "\t incm: %f (ran " PRIsize " times)\n",
-                                   solver->m_f_extra_chol_time + solver->m_f_marginals_time + solver->m_f_incmarginals_time,
-                                   solver->m_f_extra_chol_time, solver->m_f_marginals_time,
-                                   solver->m_f_incmarginals_time, solver->m_n_incmarginals_num);*/
-                        }
-                    }
-
-
-
-
-
-                    //solver.Optimize(5, 1e-5);
-                    //double after = solver.get_residual_chi2_error();
-                    //solver.Optimize(5, 1e-5);
-                    //std::cout << "difference: " << after-before << std::endl;
-                    //std::cout << "difference: " << solver.get_residual_error()- before << std::endl;
-
-
-                }
-                else{
-                    optimizer.Delay_Optimization(); //don't start optimizing right away
-                    optimizer.Increment_Once();
-                    if (t_cmd_args.b_verbose == true)
-                    {
-                        f_time_after= t.f_Time();
-                        std::cout<<"added OD edge, not solved!";
-                        printf("\nthis iteration took %f sec\n", f_time_after-f_time_before);
-
-                    }
-
-                    // incrementally add, but not solved right away due to delay_optimization()
-                }
-
-            }
-            else if(strList.size())
-            {
-                fprintf(stderr, "Error parsing graph file");
-            }
         }
 
+    }
 
-
-    }// load one outlier and predict the objective function change
     fclose(file);
     fclose(full_analysis_file);
 
@@ -253,6 +122,135 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 
     return 0;
 }
+
+bool analyze_edge_set(FILE * file_pointer, CSLAMOptimizer * p_optimizer, FILE * full_analysis_file, IntPairSet& cluster, bool verbose)
+{
+    char line[400];
+    double delta_obj = 0.0;
+
+    //CTimer t;
+    //double f_start, f_end;
+    int counter = 0;
+    std::cout << "counter: " << counter << std::endl;
+    while ( fgets (line , 400 , file_pointer) != NULL and counter < cluster.size())
+    {
+        //f_start = t.f_Time();
+
+        std::vector<std::string> strList = uListToVector(uSplit(uReplaceChar(line, '\n', ' '), ' '));
+        if(strList.size() == 30)
+        {
+            //EDGE_SE3:QUAT
+            /*int idFrom = atoi(strList[1].c_str());
+            int idTo = atoi(strList[2].c_str());
+            float x = uStr2Float(strList[3]);
+            float y = uStr2Float(strList[4]);
+            float z = uStr2Float(strList[5]);
+            float roll = uStr2Float(strList[6]);
+            float pitch = uStr2Float(strList[7]);
+            float yaw = uStr2Float(strList[8]);
+            Eigen::Matrix<double, 6, 1> edge;
+            edge << x, y, z, roll, pitch, yaw;
+
+            system.r_Add_Edge(CEdgePose3D(idFrom, idTo, edge, information, system));
+             */
+        }
+        else if(strList.size() == 12)
+        {
+            //EDGE_SE2
+            int vertex_from = atoi(strList[1].c_str());
+            int vertex_to = atoi(strList[2].c_str());
+            double x = uStr2Double(strList[3]);
+            double y = uStr2Double(strList[4]);
+            double rot = uStr2Double(strList[5]);
+
+            Eigen::MatrixXd information(3,3);
+            information << uStr2Double(strList[6]), uStr2Double(strList[7]), uStr2Double(strList[8]),
+                uStr2Double(strList[7]), uStr2Double(strList[9]), uStr2Double(strList[10]),
+                uStr2Double(strList[8]), uStr2Double(strList[10]), uStr2Double(strList[11]);
+
+            std::cout << "DEBUG" << std::endl;
+            p_optimizer->Load_New_Edge(vertex_from, vertex_to, x, y, rot, information);
+
+            if ((vertex_to - vertex_from) != 1) // if reached loop closure edge
+            {
+                //std::cout << "edge "<< vertex_from << " "<<vertex_to <<std::endl;
+                IntPair edge_pair(vertex_from, vertex_to);
+                const bool is_in = cluster.find(edge_pair) != cluster.end();
+                if (is_in == true)
+                {
+                    counter += 1;
+
+                    //p_optimizer->Enable_Optimization(); //enable optimization when LC edge is in cluster
+
+                    double delta_obj = p_optimizer->Calculate_Ofc(full_analysis_file);
+                    int dof = 3 * 1; // difference between previous iteration, instead of the current dof
+                    // multiplied by 3 in 2D cases
+                    double evil_scale = utils::p(fabs(delta_obj), dof);  // handle negative value
+                    fprintf(full_analysis_file, " %lf\n", evil_scale);
+
+                    {   // use chi2 difference test
+
+
+                        if (fabs(delta_obj) < utils::chi2(dof)) // there could be negative delta_obj?
+                        {
+                            std::cout << "edge: " << vertex_from << " "  << vertex_to << std::endl;
+                            p_optimizer->Increment_Once(); // incrementally solve
+
+                            if (verbose == true)
+                            {
+                                std::cout << "ofc: " << delta_obj << std::endl;
+
+                            }
+
+                        }
+                        else
+                        {
+                            std::cout << " " << std::endl; // add empty line to indicate clustering
+                            std::cout << "edge: " << vertex_from << " "  << vertex_to << " " << evil_scale << std::endl;
+
+                            if (verbose == true)
+                            {
+                                std::cout << "ofc: " << delta_obj << std::endl;
+
+                            }
+                            std::cout << " " << std::endl; // add empty line to indicate clustering
+
+                        }
+                    }
+
+                }
+
+            }
+            else{  // if reached odometry edge
+                //p_optimizer->Delay_Optimization(); //don't start optimizing right away
+                p_optimizer->Increment_Once();
+                if (verbose == true)
+                {
+                    //f_time_after= t.f_Time();
+                    std::cout<<"added OD edge, not solved!";
+                    //printf("\nthis iteration took %f sec\n", f_time_after-f_time_before);
+
+                }
+
+                // incrementally add, but not solved right away due to delay_optimization()
+            }
+
+        }
+        else if(strList.size())
+        {
+            fprintf(stderr, "Error parsing graph file");
+            return false;
+        }
+    }
+
+   // all lc edges in cluster has been loaded and analyzed
+
+
+    return true;
+
+
+}
+
 
 bool LoadLoopClosures(const char* file_name, IntPairSet& loops)
 {
