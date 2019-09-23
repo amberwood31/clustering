@@ -590,7 +590,7 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverType * s
 
                         if (fabs(delta_obj) < utils::chi2(dof))
                         {
-                            std::cout << "edge: " << vertex_from << " "  << vertex_to << std::endl;
+                            std::cout << "edge: " << vertex_from << " "  << vertex_to << " " << evil_scale << std::endl;
                             //solver->Incremental_Step(system->r_Add_Edge(new_edge)); // incrementally solve
                             system->r_Add_Edge(new_edge);
                             if (verbose == true)
