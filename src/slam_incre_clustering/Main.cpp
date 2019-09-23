@@ -3,8 +3,8 @@
 //
 int n_dummy_param = 0;
 /**< @brief a dummy parameter, used as a convenient commandline input, intended for debugging / testing */
-#include "slam_predicting_OFC/Main.h"
-#include "slam_predicting_OFC/utils.hpp"
+#include "slam_incre_clustering/Main.h"
+#include "slam_incre_clustering/utils.hpp"
 #include "rrr/cluster.hpp"
 
 #include <stdio.h> // printf
@@ -62,7 +62,6 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     } else {
     }
 
-    typedef CNonlinearSolver_FastL<CSystemType, CLinearSolverType> CNonlinearSolverType;
 
     CSystemType system;
 
@@ -521,12 +520,14 @@ double uStr2Double(const std::string & str)
 }
 
 template<class CSystemType, class CSolverType>
-bool analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverType * solver, FILE * full_analysis_file, IntPairSet& cluster, bool verbose)
+IntPairSet analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverType * solver, FILE * full_analysis_file, IntPairSet& cluster, bool verbose)
 {
     char line[400];
     int counter = 0;
 
-    while ( fgets (line , 400 , file_pointer) != NULL )
+    IntPairDoubleMap loops_score;
+
+    while ( fgets (line , 400 , file_pointer) != NULL and counter < cluster.size())
     {
         //solver->Delay_Optimization(); //don't start optimizing right away
         std::vector<std::string> strList = uListToVector(uSplit(uReplaceChar(line, '\n', ' '), ' '));
@@ -583,14 +584,15 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverType * s
                     int dof = 3 * 1; // difference between previous iteration, instead of the current dof
                     // multiplied by 3 in 2D cases
                     double evil_scale = utils::p(fabs(delta_obj), dof);  // handle negative value
+                    loops_score[edge_pair] = evil_scale;
                     fprintf(full_analysis_file, " %lf\n", evil_scale);
 
                     {   // use chi2 difference test
 
-
+                        std::cout << "edge: " << vertex_from << " "  << vertex_to << " " << evil_scale << std::endl;
                         if (fabs(delta_obj) < utils::chi2(dof))
                         {
-                            std::cout << "edge: " << vertex_from << " "  << vertex_to << " " << evil_scale << std::endl;
+
                             //solver->Incremental_Step(system->r_Add_Edge(new_edge)); // incrementally solve
                             system->r_Add_Edge(new_edge);
                             if (verbose == true)
@@ -602,15 +604,11 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverType * s
 
                             }
 
-
-
                         }
                         else
                         {
                             //system->r_Add_Edge(new_edge);
-                            double evil_scale = utils::p(fabs(delta_obj), dof);
                             //std::cout << " " << std::endl; // add empty line to indicate clustering
-                            std::cout << "edge: " << vertex_from << " "  << vertex_to << " " << evil_scale << std::endl;
 
                             if (verbose == true)
                             {
@@ -649,12 +647,221 @@ bool analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverType * s
         }
     }
 
-    if (verbose == true)
-        std::cout << "number of edges: " << system->n_Edge_Num() << std::endl;
+    return cluster;
+
+//    bool allInlier = true;
+//    int inlier_quantity = 0;
+//    int outlier_quantity = 0;
+//    IntPairSet Inlier_Set, Outlier_Set;
+//    for(IntPairDoubleMap::const_iterator it = loops_score.begin(); it!=loops_score.end(); it++)
+//    {
+//        if (it->second > 0.95)
+//        {
+//            outlier_quantity += 1;
+//            Outlier_Set.insert(it->first);
+//            allInlier = false;
+//        }else
+//        {
+//            inlier_quantity +=1;
+//            Inlier_Set.insert(it->first);
+//        }
+//    }
+//
+//    if (allInlier == true)
+//    {
+//        return cluster;
+//    }
+//    else{
+//        if (inlier_quantity >= outlier_quantity) // TODO_LOCAL: whether to include equal case here?
+//        {
+//            for(IntPairSet::const_iterator ip = Outlier_Set.begin(); ip != Outlier_Set.end(); ip++)
+//            {
+//                cluster.erase(*ip); // delete outliers from the input cluster
+//            }
+//        }
+//        else
+//        {
+//            std::cout << "Entering second test" << std::endl;
+//            return analyze_outlier_set(file_pointer, full_analysis_file, Outlier_Set);
+//
+//        }
+//
+//
+//    }
+
+
+
 
 }
 
+IntPairSet analyze_outlier_set(FILE * file_pointer, FILE * full_analysis_file, IntPairSet& cluster)
+{
+    char line[400];
+    int counter = 0;
 
+    IntPairDoubleMap loops_score;
+    bool first_outlier_added = false;
+
+    CSystemType system;
+    TMarginalsComputationPolicy t_marginals_config = TMarginalsComputationPolicy( true, frequency::Every(1), EBlockMatrixPart(mpart_LastColumn | mpart_Diagonal), EBlockMatrixPart(mpart_LastColumn | mpart_Diagonal), mpart_Nothing);
+    //t_marginals_config.OnCalculate_marginals(false);
+    CNonlinearSolverType solver(system, solve::Nonlinear(frequency::Every(1), 5, 1e-5), t_marginals_config);
+
+
+    while ( fgets (line , 400 , file_pointer) != NULL and counter < cluster.size())
+    {
+        //solver->Delay_Optimization(); //don't start optimizing right away
+        std::vector<std::string> strList = uListToVector(uSplit(uReplaceChar(line, '\n', ' '), ' '));
+        if(strList.size() == 30)
+        {
+            //EDGE_SE3:QUAT
+            /*int idFrom = atoi(strList[1].c_str());
+            int idTo = atoi(strList[2].c_str());
+            float x = uStr2Float(strList[3]);
+            float y = uStr2Float(strList[4]);
+            float z = uStr2Float(strList[5]);
+            float roll = uStr2Float(strList[6]);
+            float pitch = uStr2Float(strList[7]);
+            float yaw = uStr2Float(strList[8]);
+            Eigen::Matrix<double, 6, 1> edge;
+            edge << x, y, z, roll, pitch, yaw;
+
+            system.r_Add_Edge(CEdgePose3D(idFrom, idTo, edge, information, system));
+             */
+        }
+        else if(strList.size() == 12)
+        {
+            //EDGE_SE2
+            int vertex_from = atoi(strList[1].c_str());
+            int vertex_to = atoi(strList[2].c_str());
+            double x = uStr2Double(strList[3]);
+            double y = uStr2Double(strList[4]);
+            double rot = uStr2Double(strList[5]);
+
+            Eigen::MatrixXd information(3,3);
+            information << uStr2Double(strList[6]), uStr2Double(strList[7]), uStr2Double(strList[8]),
+                uStr2Double(strList[7]), uStr2Double(strList[9]), uStr2Double(strList[10]),
+                uStr2Double(strList[8]), uStr2Double(strList[10]), uStr2Double(strList[11]);
+
+            CEdgePose2D new_edge;
+            new_edge = CEdgePose2D(vertex_from, vertex_to, Eigen::Vector3d(x, y, rot), information, system);
+
+            if ((vertex_to - vertex_from) != 1) // if reached loop closure edge
+            {
+
+                //solver.Optimize(5, 1e-5);
+
+                //double before = solver.get_residual_chi2_error();
+                IntPair edge_pair(vertex_from, vertex_to);
+                const bool is_in = cluster.find(edge_pair) != cluster.end();
+                if (is_in == true)
+                {
+                    counter +=1;
+                    //solver->Enable_Optimization(); //enable optimization when there is a LC edge
+                    solver.Optimize(5, 1e-5);
+                    double delta_obj;
+                    fprintf(full_analysis_file, "Analyzing outlier set: \n");
+                    calculate_ofc(new_edge, information, solver, vertex_from, vertex_to, full_analysis_file, delta_obj);
+
+                    int dof = 3 * 1; // difference between previous iteration, instead of the current dof
+                    // multiplied by 3 in 2D cases
+                    double evil_scale = utils::p(fabs(delta_obj), dof);  // handle negative value
+                    if (first_outlier_added == true) // skip the first outlier
+                    {
+                        loops_score[edge_pair] = evil_scale;
+                    }
+
+                    fprintf(full_analysis_file, " %lf\n", evil_scale);
+
+                    {   // use chi2 difference test
+
+                        std::cout << "edge: " << vertex_from << " "  << vertex_to << " " << evil_scale << std::endl;
+                        if (fabs(delta_obj) < utils::chi2(dof))
+                        {
+
+                            //solver->Incremental_Step(system->r_Add_Edge(new_edge)); // incrementally solve
+                            system.r_Add_Edge(new_edge);
+                            std::cout << "ofc: " << delta_obj << std::endl;
+
+                        }
+                        else
+                        {
+                            //system->r_Add_Edge(new_edge);
+                            //std::cout << " " << std::endl; // add empty line to indicate clustering
+
+                            if (first_outlier_added == false)
+                            {
+                                first_outlier_added = true;
+                                system.r_Add_Edge(new_edge);
+                                std::cout << "ofc: " << delta_obj << std::endl;
+
+
+                            }
+
+                        }
+                    }
+
+                }
+
+
+            }
+            else{
+                //solver->Delay_Optimization(); //don't start optimizing right away
+                //solver->Incremental_Step(system->r_Add_Edge(new_edge));
+                system.r_Add_Edge(new_edge);
+
+                // incrementally add, but not solved right away due to delay_optimization()
+            }
+
+        }
+        else if(strList.size())
+        {
+            fprintf(stderr, "Error parsing graph file");
+        }
+    }
+
+    bool allInlier = true;
+    int inlier_quantity = 0;
+    int outlier_quantity = 0;
+    IntPairSet Inlier_Set, Outlier_Set;
+    for(IntPairDoubleMap::const_iterator it = loops_score.begin(); it!=loops_score.end(); it++)
+    {
+        if (it->second > 0.95)
+        {
+            outlier_quantity += 1;
+            Outlier_Set.insert(it->first);
+            allInlier = false;
+        }else
+        {
+            inlier_quantity +=1;
+            Inlier_Set.insert(it->first);
+        }
+    }
+
+    if (allInlier == true)
+    {
+        return cluster;
+    }
+    else{
+        //if (inlier_quantity >= outlier_quantity) // TODO_LOCAL: whether to include equal case here
+        //{
+        for(IntPairSet::const_iterator ip = Outlier_Set.begin(); ip != Outlier_Set.end(); ip++)
+        {
+            cluster.erase(*ip); // delete outliers from the input cluster
+        }
+        return cluster;
+        //}
+        //else // TODO_LOCAL: what to do if cluster is still mixed
+        //{
+        //    return analyze_outlier_set(file_pointer, full_analysis_file, Outlier_Set);
+
+        //}
+
+
+    }
+
+
+}
 
 
 
