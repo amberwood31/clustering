@@ -4,7 +4,7 @@
 SET(SLAM_EXAMPLE_BINARY_NAME "slam_incre_clustering")
 
 SET(SLAM_EXAMPLE_INCLUDE_DIRS
-        ${SLAM_P_P_SOURCE_DIR}/include/slam_predicting_OFC
+        ${SLAM_P_P_SOURCE_DIR}/include/slam_incre_clustering
         ${SLAM_P_P_SOURCE_DIR}/utilite/include)
 
 IF(SLAM_P_P_SHORT_CXSPARSE)
