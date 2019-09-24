@@ -65,7 +65,7 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 
     CSystemType system;
 
-    TMarginalsComputationPolicy t_marginals_config = TMarginalsComputationPolicy( true, frequency::Every(1), EBlockMatrixPart(mpart_LastColumn | mpart_Diagonal), EBlockMatrixPart(mpart_LastColumn | mpart_Diagonal), mpart_Nothing);
+    TMarginalsComputationPolicy t_marginals_config = TMarginalsComputationPolicy( true, frequency::Every(1), EBlockMatrixPart(mpart_LastColumn | mpart_Diagonal), EBlockMatrixPart(mpart_LastColumn | mpart_Diagonal));
 
     //t_marginals_config.OnCalculate_marginals(false);
     CNonlinearSolverType solver(system, solve::Nonlinear(frequency::Every(1), 5, 1e-5), t_marginals_config, t_cmd_args.b_verbose);
@@ -76,6 +76,9 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 
     const char *full_analysis_name = "full_analysis.txt";
     FILE * full_analysis_file = fopen(full_analysis_name, "w");
+
+    const char *clustering_outputs = "clustering_results.txt";
+    FILE * clustering_output_file = fopen(clustering_outputs, "w");
 
     // spatial clustering
     IntPairSet loops;
@@ -97,26 +100,36 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     }
 
     CSystemType * system_pointer =  &system;
-    CNonlinearSolver_FastL<CSystemType, CLinearSolverType> * solver_pointer = &solver;
+    CNonlinearSolverType * solver_pointer = &solver;
 
     start = t.f_Time();
 
     if(file){
-        for (size_t i=0; i< clusterizer.clusterCount();i++) // TODO_LOCAL: this is obviously not efficient, think about refactoring
+        for (size_t i=0; i< clusterizer.clusterCount();i++) // TODO_LOCAL: this is probably not efficient, think about refactoring
         {
             std::cout << "Analyzing cluster " << i << std::endl;
             IntPairSet cluster_i = clusterizer.getClusterByID(i);
             if (cluster_i.size() >1)
             {
-                analyze_edge_set(file, system_pointer, solver_pointer, full_analysis_file,  cluster_i, t_cmd_args.b_verbose);
+                IntPairSet consistant_cluster_i = analyze_edge_set(file, system_pointer, solver_pointer, full_analysis_file,  cluster_i, t_cmd_args.b_verbose);
                 //std::cout << "read lines: " << read_lines << std::endl;
                 std::cout << " " << std::endl; //add empty line to indicate clustering
                 rewind(file);
                 CSystemType system_new;
-                CNonlinearSolver_FastL<CSystemType, CLinearSolverType> solver_new(system_new, solve::Nonlinear(frequency::Every(1), 5, 1e-5), t_marginals_config, t_cmd_args.b_verbose);
+                CNonlinearSolverType solver_new(system_new, solve::Nonlinear(frequency::Every(1), 5, 1e-5), t_marginals_config, t_cmd_args.b_verbose);
                 system_pointer = & system_new;
                 solver_pointer = & solver_new;
 
+                for (IntPairSet::const_iterator ite = consistant_cluster_i.begin(); ite != consistant_cluster_i.end(); ite++)
+                {
+                    fprintf(clustering_output_file, "%d %d \n", ite->first, ite->second);
+                }
+                fprintf(clustering_output_file, "\n"); // add one new line to separate clusters in text output file
+
+
+            } else{
+                fprintf(clustering_output_file, "%d %d \n", cluster_i.begin()->first, cluster_i.begin()->second);
+                fprintf(clustering_output_file, "\n");
             }
 
 
@@ -401,7 +414,7 @@ void zero_offdiagonal(Eigen::MatrixXd &square_mat, int mat_size)
 }
 
 template<class CEdgeType, class CSolverType>
-void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverType &solver, int vertex_from, int vertex_to, FILE * full_analysis_file, double &del_obj_function)
+void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSystemType &system, CSolverType &solver, int vertex_from, int vertex_to, FILE * full_analysis_file, double &del_obj_function)
 {
     Eigen::Matrix3d r_t_jacobian0, r_t_jacobian1, cov_inv, innovation_cov;
     Eigen::Vector3d r_v_expectation, r_v_error;
@@ -432,8 +445,14 @@ void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverTy
     } else{
         solver.r_MarginalCovariance().save_Diagonal(covariance_idfromto, vertex_to, vertex_from);
         marginal_covariance << covariance_idfrom, covariance_idfromto.transpose(), covariance_idfromto, covariance_idto;
-
     }
+
+    const CUberBlockMatrix &r_marginals = solver.r_MarginalCovariance().r_SparseMatrix();
+    // get the marginals
+
+    //std::cout<< "in Main: matrix n_rows: " << r_marginals.n_Row_Num() << ", n_columns: " << r_marginals.n_Column_Num() << std::endl;
+    _ASSERTE(r_marginals.n_BlockColumn_Num() == system.r_Vertex_Pool().n_Size());
+
 
     innovation_cov = joined_matrix* marginal_covariance * joined_matrix.transpose() + information.inverse();
     cov_inv = innovation_cov.inverse();
@@ -575,11 +594,13 @@ IntPairSet analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverTy
                 const bool is_in = cluster.find(edge_pair) != cluster.end();
                 if (is_in == true)
                 {
+                    //std::cout <<"number of edges: " << system->n_Edge_Num() << std::endl;
+                    //std::cout << "number of nodes: " << system->n_Vertex_Num() << std::endl;
                     counter +=1;
                     //solver->Enable_Optimization(); //enable optimization when there is a LC edge
-                    solver->Optimize(5, 1e-5);
+                    solver->Optimize();
                     double delta_obj;
-                    calculate_ofc(new_edge, information, *solver, vertex_from, vertex_to, full_analysis_file, delta_obj);
+                    calculate_ofc(new_edge, information, *system, *solver, vertex_from, vertex_to, full_analysis_file, delta_obj);
 
                     int dof = 3 * 1; // difference between previous iteration, instead of the current dof
                     // multiplied by 3 in 2D cases
@@ -616,7 +637,6 @@ IntPairSet analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverTy
 
 
                             }
-                            std::cout << " " << std::endl; // add empty line to indicate clustering
 
                         }
                     }
@@ -647,47 +667,50 @@ IntPairSet analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverTy
         }
     }
 
-    return cluster;
+    //std::cout <<"number of edges: " << system->n_Edge_Num() << std::endl;
+    //std::cout << "number of nodes: " << system->n_Vertex_Num() << std::endl;
+    //return cluster;
 
-//    bool allInlier = true;
-//    int inlier_quantity = 0;
-//    int outlier_quantity = 0;
-//    IntPairSet Inlier_Set, Outlier_Set;
-//    for(IntPairDoubleMap::const_iterator it = loops_score.begin(); it!=loops_score.end(); it++)
-//    {
-//        if (it->second > 0.95)
-//        {
-//            outlier_quantity += 1;
-//            Outlier_Set.insert(it->first);
-//            allInlier = false;
-//        }else
-//        {
-//            inlier_quantity +=1;
-//            Inlier_Set.insert(it->first);
-//        }
-//    }
-//
-//    if (allInlier == true)
-//    {
-//        return cluster;
-//    }
-//    else{
-//        if (inlier_quantity >= outlier_quantity) // TODO_LOCAL: whether to include equal case here?
-//        {
-//            for(IntPairSet::const_iterator ip = Outlier_Set.begin(); ip != Outlier_Set.end(); ip++)
-//            {
-//                cluster.erase(*ip); // delete outliers from the input cluster
-//            }
-//        }
-//        else
-//        {
-//            std::cout << "Entering second test" << std::endl;
-//            return analyze_outlier_set(file_pointer, full_analysis_file, Outlier_Set);
-//
-//        }
-//
-//
-//    }
+    bool allInlier = true;
+    int inlier_quantity = 0;
+    int outlier_quantity = 0;
+    IntPairSet Inlier_Set, Outlier_Set;
+    for(IntPairDoubleMap::const_iterator it = loops_score.begin(); it!=loops_score.end(); it++)
+    {
+        if (it->second > 0.95)
+        {
+            outlier_quantity += 1;
+            Outlier_Set.insert(it->first);
+            allInlier = false;
+        }else
+        {
+            inlier_quantity +=1;
+            Inlier_Set.insert(it->first);
+        }
+    }
+
+    if (allInlier == true)
+    {
+        return cluster;
+    }
+    else{
+        if (inlier_quantity >= outlier_quantity) // TODO_LOCAL: whether to include equal case here?
+        {
+            for(IntPairSet::const_iterator ip = Outlier_Set.begin(); ip != Outlier_Set.end(); ip++)
+            {
+                cluster.erase(*ip); // delete outliers from the input cluster
+            }
+            return cluster;
+        }
+        else
+        {
+            std::cout << "Entering second test" << std::endl;
+            return analyze_outlier_set(file_pointer, full_analysis_file, Outlier_Set);
+
+        }
+
+
+    }
 
 
 
@@ -696,6 +719,8 @@ IntPairSet analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverTy
 
 IntPairSet analyze_outlier_set(FILE * file_pointer, FILE * full_analysis_file, IntPairSet& cluster)
 {
+    rewind(file_pointer); // reset the file pointer to the beginning
+
     char line[400];
     int counter = 0;
 
@@ -761,7 +786,7 @@ IntPairSet analyze_outlier_set(FILE * file_pointer, FILE * full_analysis_file, I
                     solver.Optimize(5, 1e-5);
                     double delta_obj;
                     fprintf(full_analysis_file, "Analyzing outlier set: \n");
-                    calculate_ofc(new_edge, information, solver, vertex_from, vertex_to, full_analysis_file, delta_obj);
+                    calculate_ofc(new_edge, information, system, solver, vertex_from, vertex_to, full_analysis_file, delta_obj);
 
                     int dof = 3 * 1; // difference between previous iteration, instead of the current dof
                     // multiplied by 3 in 2D cases
@@ -781,7 +806,6 @@ IntPairSet analyze_outlier_set(FILE * file_pointer, FILE * full_analysis_file, I
 
                             //solver->Incremental_Step(system->r_Add_Edge(new_edge)); // incrementally solve
                             system.r_Add_Edge(new_edge);
-                            std::cout << "ofc: " << delta_obj << std::endl;
 
                         }
                         else
@@ -793,7 +817,6 @@ IntPairSet analyze_outlier_set(FILE * file_pointer, FILE * full_analysis_file, I
                             {
                                 first_outlier_added = true;
                                 system.r_Add_Edge(new_edge);
-                                std::cout << "ofc: " << delta_obj << std::endl;
 
 
                             }
@@ -843,19 +866,20 @@ IntPairSet analyze_outlier_set(FILE * file_pointer, FILE * full_analysis_file, I
         return cluster;
     }
     else{
-        //if (inlier_quantity >= outlier_quantity) // TODO_LOCAL: whether to include equal case here
-        //{
-        for(IntPairSet::const_iterator ip = Outlier_Set.begin(); ip != Outlier_Set.end(); ip++)
+        if (inlier_quantity >= outlier_quantity) // TODO_LOCAL: whether to include equal case here
         {
-            cluster.erase(*ip); // delete outliers from the input cluster
+            for(IntPairSet::const_iterator ip = Outlier_Set.begin(); ip != Outlier_Set.end(); ip++)
+            {
+                cluster.erase(*ip); // delete outliers from the input cluster
+            }
+            return cluster;
         }
-        return cluster;
-        //}
-        //else // TODO_LOCAL: what to do if cluster is still mixed
-        //{
-        //    return analyze_outlier_set(file_pointer, full_analysis_file, Outlier_Set);
+        else // TODO_LOCAL: what to do if cluster is still mixed
+        {
+            std::cout << "Entering third test" << std::endl;
+            return analyze_outlier_set(file_pointer, full_analysis_file, Outlier_Set);
 
-        //}
+        }
 
 
     }

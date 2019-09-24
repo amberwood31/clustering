@@ -1,7 +1,7 @@
 /*
 								+--------------------------------+
 								|                                |
-								| *** Über Block Matrix base *** |
+								| *** ï¿½ber Block Matrix base *** |
 								|                                |
 								| Copyright (c) -tHE SWINe- 2013 |
 								|                                |
@@ -13,12 +13,13 @@
 #pragma once
 #ifndef __UBER_BLOCK_MATRIX_BASE_INCLUDED
 #define __UBER_BLOCK_MATRIX_BASE_INCLUDED
+#include <iostream>
 
 /**
  *	@file include/slam/BlockMatrixBase.h
  *	@date 2012
  *	@author -tHE SWINe-
- *	@brief the ÜberBlockMatrix base class
+ *	@brief the ï¿½berBlockMatrix base class
  *
  *	@date 2017-05-02
  *
@@ -1564,6 +1565,7 @@ public:
 					size_t n_height = m_block_rows_list[n_row].n_height;
 					if(m_n_ref_elem_num > 0 && m_data_pool.index_of(p_block) == size_t(-1))
 						continue; // cannot check referenced blocks (would have to keep track of references); the original matrix can still be checked thouhg (and it will detect errors if any)
+					//std::cout << "i : " << i << std::endl;
 					_ASSERTE(_TyBoundsCheck::b_CheckBlockMarkers(m_data_pool, p_block, n_width * n_height)); // make sure noone overwritten block bound markers
 				}
 			}
