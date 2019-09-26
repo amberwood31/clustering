@@ -33,10 +33,10 @@
 
 namespace utils
 {
-double chi2(int dof)
+double chi2(int dof, float threshold)
 {
     if(dof>0)
-        return boost::math::quantile(boost::math::chi_squared(dof),0.95);
+        return boost::math::quantile(boost::math::chi_squared(dof),threshold);
     else
     {
         std::cerr<<__LINE__<<" dof <= 0 ? "<<std::endl;

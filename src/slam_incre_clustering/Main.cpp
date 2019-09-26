@@ -111,7 +111,7 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
             IntPairSet cluster_i = clusterizer.getClusterByID(i);
             if (cluster_i.size() >1)
             {
-                IntPairSet consistant_cluster_i = analyze_edge_set(file, system_pointer, solver_pointer, full_analysis_file,  cluster_i, t_cmd_args.b_verbose);
+                IntPairSet consistant_cluster_i = analyze_edge_set(file, system_pointer, solver_pointer, full_analysis_file,  cluster_i, t_cmd_args.f_chi2_dif_test_threshold, t_cmd_args.b_verbose);
                 //std::cout << "read lines: " << read_lines << std::endl;
                 std::cout << " " << std::endl; //add empty line to indicate clustering
                 rewind(file);
@@ -238,6 +238,7 @@ void TCommandLineArgs::Defaults()
     p_s_input_file = 0; /** <@brief path to the data file */
     n_max_lines_to_process = 0; /** <@brief maximal number of lines to process */
     n_spatial_clustering_threshold = 50;
+    f_chi2_dif_test_threshold = 0.95;
 
 
     n_linear_solve_each_n_steps = 0; /**< @brief linear solve period, in steps (0 means disabled) */
@@ -539,7 +540,7 @@ double uStr2Double(const std::string & str)
 }
 
 template<class CSystemType, class CSolverType>
-IntPairSet analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverType * solver, FILE * full_analysis_file, IntPairSet& cluster, bool verbose)
+IntPairSet analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverType * solver, FILE * full_analysis_file, IntPairSet& cluster, float chi2_threshold, bool verbose)
 {
     char line[400];
     int counter = 0;
@@ -611,7 +612,7 @@ IntPairSet analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverTy
                     {   // use chi2 difference test
 
                         std::cout << "edge: " << vertex_from << " "  << vertex_to << " " << evil_scale << std::endl;
-                        if (fabs(delta_obj) < utils::chi2(dof))
+                        if (fabs(delta_obj) < utils::chi2(dof, chi2_threshold))
                         {
 
                             //solver->Incremental_Step(system->r_Add_Edge(new_edge)); // incrementally solve
@@ -677,7 +678,7 @@ IntPairSet analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverTy
     IntPairSet Inlier_Set, Outlier_Set;
     for(IntPairDoubleMap::const_iterator it = loops_score.begin(); it!=loops_score.end(); it++)
     {
-        if (it->second > 0.95)
+        if (it->second > chi2_threshold)
         {
             outlier_quantity += 1;
             Outlier_Set.insert(it->first);
@@ -698,6 +699,10 @@ IntPairSet analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverTy
         {
             for(IntPairSet::const_iterator ip = Outlier_Set.begin(); ip != Outlier_Set.end(); ip++)
             {
+                if (ip->first == 737)
+                {
+
+                }
                 cluster.erase(*ip); // delete outliers from the input cluster
             }
             return cluster;
@@ -705,7 +710,7 @@ IntPairSet analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverTy
         else
         {
             std::cout << "Entering second test" << std::endl;
-            return analyze_outlier_set(file_pointer, full_analysis_file, Outlier_Set);
+            return analyze_outlier_set(file_pointer, full_analysis_file, Outlier_Set, chi2_threshold);
 
         }
 
@@ -717,7 +722,7 @@ IntPairSet analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverTy
 
 }
 
-IntPairSet analyze_outlier_set(FILE * file_pointer, FILE * full_analysis_file, IntPairSet& cluster)
+IntPairSet analyze_outlier_set(FILE * file_pointer, FILE * full_analysis_file, IntPairSet& cluster, float chi2_threshold)
 {
     rewind(file_pointer); // reset the file pointer to the beginning
 
@@ -796,32 +801,26 @@ IntPairSet analyze_outlier_set(FILE * file_pointer, FILE * full_analysis_file, I
                         loops_score[edge_pair] = evil_scale;
                     }
 
-                    fprintf(full_analysis_file, " %lf\n", evil_scale);
 
+                    fprintf(full_analysis_file, " %lf\n", evil_scale);
+                    std::cout << "edge: " << vertex_from << " "  << vertex_to << " " << evil_scale << std::endl;
+
+                    if (first_outlier_added == false)
+                    {
+                        first_outlier_added = true;
+                        system.r_Add_Edge(new_edge);
+                    }
+                    else
                     {   // use chi2 difference test
 
-                        std::cout << "edge: " << vertex_from << " "  << vertex_to << " " << evil_scale << std::endl;
-                        if (fabs(delta_obj) < utils::chi2(dof))
+                        if (fabs(delta_obj) < utils::chi2(dof, chi2_threshold))
                         {
 
                             //solver->Incremental_Step(system->r_Add_Edge(new_edge)); // incrementally solve
                             system.r_Add_Edge(new_edge);
 
                         }
-                        else
-                        {
-                            //system->r_Add_Edge(new_edge);
-                            //std::cout << " " << std::endl; // add empty line to indicate clustering
 
-                            if (first_outlier_added == false)
-                            {
-                                first_outlier_added = true;
-                                system.r_Add_Edge(new_edge);
-
-
-                            }
-
-                        }
                     }
 
                 }
@@ -849,7 +848,7 @@ IntPairSet analyze_outlier_set(FILE * file_pointer, FILE * full_analysis_file, I
     IntPairSet Inlier_Set, Outlier_Set;
     for(IntPairDoubleMap::const_iterator it = loops_score.begin(); it!=loops_score.end(); it++)
     {
-        if (it->second > 0.95)
+        if (it->second > chi2_threshold)
         {
             outlier_quantity += 1;
             Outlier_Set.insert(it->first);
@@ -868,8 +867,15 @@ IntPairSet analyze_outlier_set(FILE * file_pointer, FILE * full_analysis_file, I
     else{
         if (inlier_quantity >= outlier_quantity) // TODO_LOCAL: whether to include equal case here
         {
+
             for(IntPairSet::const_iterator ip = Outlier_Set.begin(); ip != Outlier_Set.end(); ip++)
             {
+
+                if (inlier_quantity == outlier_quantity)
+                {
+                    std::cout << "TIE" << std::endl;
+                    std::cout << ip->first << "," << ip->second << std::endl;
+                }
                 cluster.erase(*ip); // delete outliers from the input cluster
             }
             return cluster;
@@ -877,7 +883,7 @@ IntPairSet analyze_outlier_set(FILE * file_pointer, FILE * full_analysis_file, I
         else // TODO_LOCAL: what to do if cluster is still mixed
         {
             std::cout << "Entering third test" << std::endl;
-            return analyze_outlier_set(file_pointer, full_analysis_file, Outlier_Set);
+            return analyze_outlier_set(file_pointer, full_analysis_file, Outlier_Set, chi2_threshold);
 
         }
 
@@ -950,8 +956,12 @@ bool TCommandLineArgs::Parse(int n_arg_num, const char **p_arg_list)
             n_nonlinear_solve_each_n_steps = atol(p_arg_list[++ i]);
         else if(!strcmp(p_arg_list[i], "--max-nonlinear-solve-iters") || !strcmp(p_arg_list[i], "-mnsi"))
             n_max_nonlinear_solve_iteration_num = atol(p_arg_list[++ i]);
+        else if(!strcmp(p_arg_list[i], "--n_spatial_clustering_threshold") || !strcmp(p_arg_list[i], "-cs"))
+            n_spatial_clustering_threshold = atol(p_arg_list[++ i]);
         else if(!strcmp(p_arg_list[i], "--nonlinear-solve-error-thresh") || !strcmp(p_arg_list[i], "-nset"))
             f_nonlinear_solve_error_threshold = atof(p_arg_list[++ i]);
+        else if(!strcmp(p_arg_list[i], "--chi2_difference_test_threshold") || !strcmp(p_arg_list[i], "-cdtt"))
+            f_chi2_dif_test_threshold = atof(p_arg_list[++ i]);
         else if(!strcmp(p_arg_list[i], "--max-final-nonlinear-solve-iters") || !strcmp(p_arg_list[i], "-mfnsi"))
             n_max_final_optimization_iteration_num = atol(p_arg_list[++ i]);
         else if(!strcmp(p_arg_list[i], "--final-nonlinear-solve-error-thresh") || !strcmp(p_arg_list[i], "-fnset"))

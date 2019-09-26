@@ -58,6 +58,7 @@ struct TCommandLineArgs {
     const char *p_s_input_file; /**< @brief path to the data file */
     int n_max_lines_to_process; /**< @brief maximal number of lines to process */
     int n_spatial_clustering_threshold;
+    float f_chi2_dif_test_threshold;
     size_t n_linear_solve_each_n_steps; /**< @brief linear solve period, in steps (0 means disabled) */
     size_t n_nonlinear_solve_each_n_steps; /**< @brief nonlinear solve period, in steps (0 means disabled) */
     size_t n_max_nonlinear_solve_iteration_num; /**< @brief maximal number of iterations in nonlinear solve step */
@@ -103,9 +104,9 @@ template <class CSystemType>
 bool load_graph(const char *fileName, CSystemType &system);
 
 template<class CSystemType, class CSolverType>
-IntPairSet analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverType * solver, FILE * full_analysis_file, IntPairSet& cluster, bool verbose);
+IntPairSet analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverType * solver, FILE * full_analysis_file, IntPairSet& cluster, float chi2_threshold, bool verbose);
 
-IntPairSet analyze_outlier_set(FILE * file_pointer, FILE * full_analysis_file, IntPairSet& cluster);
+IntPairSet analyze_outlier_set(FILE * file_pointer, FILE * full_analysis_file, IntPairSet& cluster, float chi2_threshold);
 
 template<class CEdgeType, class CSolverType>
 void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSystemType &system, CSolverType &solver, int vertex_from, int vertex_to, FILE * full_analysis_file, double &del_obj_function);
