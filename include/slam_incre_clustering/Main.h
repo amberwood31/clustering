@@ -104,12 +104,12 @@ template <class CSystemType>
 bool load_graph(const char *fileName, CSystemType &system);
 
 template<class CSystemType, class CSolverType>
-IntPairSet analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverType * solver, FILE * full_analysis_file, IntPairSet& cluster, float chi2_threshold, bool verbose);
+IntPairDoubleMap analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverType * solver, IntPairSet& cluster, IntPairSet& rejected_loops, float chi2_threshold, bool verbose);
 
-IntPairSet analyze_outlier_set(FILE * file_pointer, FILE * full_analysis_file, IntPairSet& cluster, float chi2_threshold);
+IntPairDoubleMap analyze_outlier_set(FILE * file_pointer, IntPairSet& cluster, IntPairSet & rejected_loops, float chi2_threshold);
 
 template<class CEdgeType, class CSolverType>
-void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSystemType &system, CSolverType &solver, int vertex_from, int vertex_to, FILE * full_analysis_file, double &del_obj_function);
+void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSystemType &system, CSolverType &solver, int vertex_from, int vertex_to, double &del_obj_function);
 
 void zero_offdiagonal(Eigen::MatrixXd &square_mat, int mat_size);
 
