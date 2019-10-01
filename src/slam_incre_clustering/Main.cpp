@@ -99,9 +99,6 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 
     CSystemType * system_pointer; // =  &system;
     CNonlinearSolverType * solver_pointer; // = &solver;
-    int *test_int_pointer;
-    int test_int = 5;
-    test_int_pointer = &test_int;
 
     start = t.f_Time();
     IntPairSet rejected_loops;
@@ -116,27 +113,20 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
                 CSystemType system_new;
                 CNonlinearSolverType solver_new(system_new, solve::Nonlinear(frequency::Every(1), 5, 1e-5), t_marginals_config, t_cmd_args.b_verbose);
 
-                std::cout << "system_pointer: " << system_pointer << std::endl;
+                //std::cout << "system_pointer: " << system_pointer << std::endl;
 
                 system_pointer = & system_new;
                 solver_pointer = & solver_new;
 
-                std::cout <<"number of edges: " << system_pointer->n_Edge_Num() << std::endl;
-                std::cout << "number of nodes: " << system_pointer->n_Vertex_Num() << std::endl;
+                //std::cout <<"number of edges: " << system_pointer->n_Edge_Num() << std::endl;
+                //std::cout << "number of nodes: " << system_pointer->n_Vertex_Num() << std::endl;
                 IntPairDoubleMap consistant_cluster_i = analyze_edge_set(file, system_pointer, solver_pointer, cluster_i, rejected_loops, t_cmd_args.f_chi2_dif_test_threshold, t_cmd_args.b_verbose);
 
-                std::cout <<"number of edges: " << system_pointer->n_Edge_Num() << std::endl;
-                std::cout << "number of nodes: " << system_pointer->n_Vertex_Num() << std::endl;
+                //std::cout <<"number of edges: " << system_pointer->n_Edge_Num() << std::endl;
+                //std::cout << "number of nodes: " << system_pointer->n_Vertex_Num() << std::endl;
 
                 std::cout << " " << std::endl; //add empty line to indicate clustering
                 rewind(file);
-
-                std::cout << "test_int_pointer points to " << *test_int_pointer << std::endl;
-                std::cout << "test_int_pointer: " << test_int_pointer << std::endl;
-                int test_int_new = i;
-                test_int_pointer = & test_int_new;
-                std::cout << "test_int_points to " << *test_int_pointer << std::endl;
-                std::cout << "test_int_pointer: " << test_int_pointer << std::endl;
 
                 for (IntPairDoubleMap::const_iterator ite = consistant_cluster_i.begin(); ite != consistant_cluster_i.end(); ite++)
                 {
@@ -723,6 +713,10 @@ IntPairDoubleMap analyze_edge_set(FILE * file_pointer, CSystemType * system, CSo
     else{
         if (inlier_quantity >= outlier_quantity) // TODO_LOCAL: whether to include equal case here?
         {
+            if (inlier_quantity == 1 && outlier_quantity == 1) //in this case, there is not enough evidence to believe this inlier is actually an inlier
+            {
+                loops_score[ *Inlier_Set.begin()] = 0.0;
+            }
             for(IntPairSet::const_iterator ip = Outlier_Set.begin(); ip != Outlier_Set.end(); ip++)
             {
 
@@ -825,6 +819,9 @@ IntPairDoubleMap analyze_outlier_set(FILE * file_pointer, IntPairSet& cluster, I
                     int dof = 3 * 1; // difference between previous iteration, instead of the current dof
                     // multiplied by 3 in 2D cases
                     double evil_scale = utils::p(fabs(delta_obj), dof);  // handle negative value
+
+                    // all edges entered this function should eventually get score 0.0, but not here.
+                    // because their actual score will be needed later to determine their status within this cluster
                     if (first_outlier_added == true) // skip the first outlier
                     {
                         loops_score[edge_pair] = evil_scale;
@@ -893,6 +890,11 @@ IntPairDoubleMap analyze_outlier_set(FILE * file_pointer, IntPairSet& cluster, I
 
     if (allInlier == true)
     {
+        for(IntPairDoubleMap::iterator id = loops_score.begin(); id != loops_score.end(); id++)
+        {
+            id->second = 0.0; // zero all the score here
+        }
+
         return loops_score;
     }
     else{
@@ -914,7 +916,7 @@ IntPairDoubleMap analyze_outlier_set(FILE * file_pointer, IntPairSet& cluster, I
 
             for(IntPairDoubleMap::iterator id = loops_score.begin(); id != loops_score.end(); id++)
             {
-                id->second = 0.0; // zero all the score for outlier set
+                id->second = 0.0; // zero all the score here
             }
             return loops_score;
         }
