@@ -97,8 +97,8 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 
     }
 
-    CSystemType * system_pointer; // =  &system;
-    CNonlinearSolverType * solver_pointer; // = &solver;
+    //CSystemType * system_pointer; // =  &system;
+    //CNonlinearSolverType * solver_pointer; // = &solver;
 
     start = t.f_Time();
     IntPairSet rejected_loops;
@@ -110,20 +110,22 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
             IntPairSet cluster_i = clusterizer.getClusterByID(i);
             if (cluster_i.size() >1)
             {
-                CSystemType system_new;
-                CNonlinearSolverType solver_new(system_new, solve::Nonlinear(frequency::Every(1), 5, 1e-5), t_marginals_config, t_cmd_args.b_verbose);
+                //CSystemType system_new;
+                //CNonlinearSolverType solver_new(system_new, solve::Nonlinear(frequency::Every(1), 5, 1e-5), t_marginals_config, t_cmd_args.b_verbose);
 
                 //std::cout << "system_pointer: " << system_pointer << std::endl;
 
-                system_pointer = & system_new;
-                solver_pointer = & solver_new;
+                CSystemType * system_pointer = new CSystemType();
+                CNonlinearSolverType * solver_pointer = new CNonlinearSolverType(*system_pointer, solve::Nonlinear(frequency::Every(1), 5, 1e-5), t_marginals_config, t_cmd_args.b_verbose);
+                //system_pointer = & system_new;
+                //solver_pointer = & solver_new;
 
-                //std::cout <<"number of edges: " << system_pointer->n_Edge_Num() << std::endl;
-                //std::cout << "number of nodes: " << system_pointer->n_Vertex_Num() << std::endl;
+                std::cout <<"number of edges: " << system_pointer->n_Edge_Num() << std::endl;
+                std::cout << "number of nodes: " << system_pointer->n_Vertex_Num() << std::endl;
                 IntPairDoubleMap consistant_cluster_i = analyze_edge_set(file, system_pointer, solver_pointer, cluster_i, rejected_loops, t_cmd_args.f_chi2_dif_test_threshold, t_cmd_args.b_verbose);
 
-                //std::cout <<"number of edges: " << system_pointer->n_Edge_Num() << std::endl;
-                //std::cout << "number of nodes: " << system_pointer->n_Vertex_Num() << std::endl;
+                std::cout <<"number of edges: " << system_pointer->n_Edge_Num() << std::endl;
+                std::cout << "number of nodes: " << system_pointer->n_Vertex_Num() << std::endl;
 
                 std::cout << " " << std::endl; //add empty line to indicate clustering
                 rewind(file);
@@ -134,13 +136,15 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
                 }
                 fprintf(clustering_output_file, "\n"); // add one new line to separate clusters in text output file
 
-                std::cout << "leaving if loop" << std::endl;
+                delete system_pointer;
+                delete solver_pointer;
+                //std::cout << "leaving if loop" << std::endl;
 
             } else{
                 fprintf(clustering_output_file, "CLUSTER %d %d %lf\n", cluster_i.begin()->first, cluster_i.begin()->second, 0.0);
                 fprintf(clustering_output_file, "\n");
             }
-            std::cout << "leaving for loop" << std::endl;
+            //std::cout << "leaving for loop" << std::endl;
 
         }
 
