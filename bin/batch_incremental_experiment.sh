@@ -17,7 +17,8 @@ do
 	mv output.txt output_"$SEED".txt
 	mv full_analysis.txt full_analysis_"$SEED".txt
 	mv combined_score_plot.png combined_score_plot_"$SEED".png
-        mv result.tga result_"$SEED".tga
+    mv result.tga result_"$SEED".tga
+    rm sorted.g2o input.g2o
 
 done
 

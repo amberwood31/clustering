@@ -715,7 +715,7 @@ IntPairDoubleMap analyze_edge_set(FILE * file_pointer, CSystemType * system, CSo
         return loops_score;
     }
     else{
-        if (inlier_quantity >= outlier_quantity) // TODO_LOCAL: whether to include equal case here?
+        if (inlier_quantity > outlier_quantity) // TODO_LOCAL: whether to include equal case here?
         {
             if (inlier_quantity == 1 && outlier_quantity == 1) //in this case, there is not enough evidence to believe this inlier is actually an inlier
             {
@@ -902,7 +902,8 @@ IntPairDoubleMap analyze_outlier_set(FILE * file_pointer, IntPairSet& cluster, I
         return loops_score;
     }
     else{
-        if (inlier_quantity >= outlier_quantity) // TODO_LOCAL: whether to include equal case here
+        if (inlier_quantity >= outlier_quantity) // TODO_LOCAL: need to include equal case here.
+            // Otherwise could get stuck in this function when there are only two inconsistant edges in the cluster
         {
 
             for(IntPairSet::const_iterator ip = Outlier_Set.begin(); ip != Outlier_Set.end(); ip++)
