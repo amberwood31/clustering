@@ -6,8 +6,8 @@
 #define SLAM_PLUS_PLUS_MAIN_H
 
 
-#include "slam/LinearSolver_UberBlock.h"
-#include "slam/LinearSolver_CholMod.h"
+//#include "slam/LinearSolver_UberBlock.h"
+//#include "slam/LinearSolver_CholMod.h"
 //#include "slam/LinearSolver_Schur.h"
 //#include "slam/LinearSolver_CSparse.h"
 //#include "slam/LinearSolver_CXSparse.h" // linear solvers (only one is required)
@@ -17,23 +17,8 @@
 #include "slam_app/ParsePrimitives.h"
 #include <list>
 #include "rrr/types.hpp"
+#include "slam_incre_clustering/utilities.h"
 
-
-/*#include "rtabmap/utilite/ULogger.h"
-#include <rtabmap/utilite/UStl.h>
-#include <rtabmap/utilite/UMath.h>
-#include <rtabmap/utilite/UConversion.h>
-#include <rtabmap/utilite/UTimer.h>
-
-#include "rtabmap/utilite/ULogger.h"
-*/ // TODO_LOCAL figure out how to integrate utilite library
-
-
-std::string uReplaceChar(const std::string & str, char before, char after);
-double uStr2Double(const std::string & str);
-std::list<std::string> uSplit(const std::string & str, char separator = ' ');
-template<class V>
-std::vector<V> uListToVector(const std::list<V> & list);
 
 /**
  *	@brief structure, containing values of all the commandline arguments
@@ -88,38 +73,12 @@ struct TCommandLineArgs {
 
 };
 
-
-typedef MakeTypelist(CVertexPose2D) TVertexTypelist;
-typedef MakeTypelist(CEdgePose2D) TEdgeTypelist;
-
-
-
-typedef CFlatSystem<CVertexPose2D, TVertexTypelist, CEdgePose2D, TEdgeTypelist> CSystemType;
-
-typedef CLinearSolver_UberBlock<CSystemType::_TyHessianMatrixBlockList> CLinearSolverType;
-typedef CNonlinearSolver_Lambda<CSystemType, CLinearSolverType> CNonlinearSolverType;
-
-
-template <class CSystemType>
-bool load_graph(const char *fileName, CSystemType &system);
-
-template<class CSystemType, class CSolverType>
-IntPairDoubleMap analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverType * solver, IntPairSet& cluster, IntPairSet& rejected_loops, float chi2_threshold, bool verbose);
-
-IntPairDoubleMap analyze_outlier_set(FILE * file_pointer, IntPairSet& cluster, IntPairSet & rejected_loops, float chi2_threshold);
-
-template<class CEdgeType, class CSolverType>
-void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSystemType &system, CSolverType &solver, int vertex_from, int vertex_to, double &del_obj_function);
-
-void zero_offdiagonal(Eigen::MatrixXd &square_mat, int mat_size);
-
-
+bool LoadLoopClosures(const char* file_name, IntPairSet& loops);
 
 /**
  *	@brief prints all the important compiler / optimization switches this app was built with
  */
 void DisplaySwitches();
-bool LoadLoopClosures(const char* file_name, IntPairSet& loops);
 
 
 #endif //SLAM_PLUS_PLUS_MAIN_H
