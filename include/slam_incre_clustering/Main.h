@@ -5,38 +5,20 @@
 #ifndef SLAM_PLUS_PLUS_MAIN_H
 #define SLAM_PLUS_PLUS_MAIN_H
 
-
-//#include "slam/LinearSolver_UberBlock.h"
-//#include "slam/LinearSolver_CholMod.h"
-//#include "slam/LinearSolver_Schur.h"
-//#include "slam/LinearSolver_CSparse.h"
-//#include "slam/LinearSolver_CXSparse.h" // linear solvers (only one is required)
 #include "slam/ConfigSolvers.h" // nonlinear graph solvers
-#include "slam/SE2_Types.h" // SE(2) types
-#include "slam/SE3_Types.h"
-#include "slam_app/ParsePrimitives.h"
-#include <list>
+//#include "slam/SE2_Types.h" // SE(2) types
+//#include "slam/SE3_Types.h"
 #include "rrr/types.hpp"
-#include "slam_incre_clustering/utilities.h"
-
 
 /**
  *	@brief structure, containing values of all the commandline arguments
  */
 struct TCommandLineArgs {
-    ENonlinearSolverType n_solver_choice; /**< @brief nonlinear solver selector */
-    bool b_write_bitmaps; /**< @brief bitmaps write flag */
-    bool b_write_solution; /**< @brief initial / solution write flag */
-    bool b_xz_plots; /**< @brief x-z bitmaps orientation flag */
-    bool b_write_system_matrix; /**< @brief matrix write flag */
-    bool b_no_show; /**< @brief bitmaps show flag (only on windows) */
     bool b_show_commandline; /**< @brief commandline repeat flag */
     bool b_show_flags; /**< @brief show build flags flag */
     bool b_show_detailed_timing; /**< @brief show detailed timing flag */
     bool b_verbose; /**< @brief verbosity flag; true means verbose, false means silent */
     bool b_use_schur; /**< @brief use Schur component flag */
-    bool b_run_matrix_benchmarks; /**< @brief run block matrix benchmarks flag */
-    bool b_run_matrix_unit_tests; /**< @brief run block matrix unit tests flag */
     bool b_use_old_system; /**< @brief old system flag (deprecated) */
     bool b_pose_only; /**< @brief optimize pose-only problems */
     bool b_use_SE3; /**< @brief process SE3 system @note This is not overriden in commandline but detected in peek-parsing. */
@@ -50,8 +32,6 @@ struct TCommandLineArgs {
     double f_nonlinear_solve_error_threshold; /**< @brief error threshold for nonlinear solve */
     size_t n_max_final_optimization_iteration_num; /**< @brief number of nonlinear solver iterations */ // as many other solvers
     double f_final_optimization_threshold; /**< @brief final optimization threshold */
-    const char *p_s_bench_name; /**< @brief benchmark file name (only if b_run_matrix_benchmarks is set) */
-    const char *p_s_bench_type; /**< @brief benchmark type (only if b_run_matrix_benchmarks is set) */
     size_t n_omp_threads; /**< @brief OpenMP number of threads override */
     bool b_omp_dynamic; /**< @brief OpenMP dynamic scheduling override enable flag */
     //bool b_do_marginals; /**< @brief marginal covariance calculation enable flag */

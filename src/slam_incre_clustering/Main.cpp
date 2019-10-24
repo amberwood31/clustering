@@ -27,14 +27,12 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     DisplaySwitches();
     CTimer t;
     double start, end;
-    start = t.f_Time();
 
     TCommandLineArgs t_cmd_args;
     t_cmd_args.Defaults(); // set defaults
     if(!t_cmd_args.Parse(n_arg_num, p_arg_list))
         return -1;
     // parse commandline
-
 
     if(t_cmd_args.b_show_commandline) {
         printf("> ./SLAM_plus_plus");
@@ -72,57 +70,56 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
             std::cout<<i<<": " << temppair->first << " " << temppair->second << std::endl;
         }
     }
-    IntPairSet rejected_loops;
 
+    IntPairSet rejected_loops;
     const char *clustering_outputs = "clustering_results.txt";
     FILE * clustering_output_file = fopen(clustering_outputs, "w");
     FILE * file = fopen(t_cmd_args.p_s_input_file, "r");
 
     start = t.f_Time();
-
-
     if (graph_2d)
     {
         solver_2d incremental_solver;
 
-        if(file){
-            for (size_t i=0; i< clusterizer.clusterCount();i++) // TODO_LOCAL: this is probably not efficient, think about refactoring
+        for (size_t i=0; i< clusterizer.clusterCount();i++) // TODO_LOCAL: is this the most efficient way?
+        {
+            std::cout << "Analyzing cluster " << i << std::endl;
+            IntPairSet cluster_i = clusterizer.getClusterByID(i);
+            if (cluster_i.size() >1) // only analyze clusters that have multiple edges
             {
-                std::cout << "Analyzing cluster " << i << std::endl;
-                IntPairSet cluster_i = clusterizer.getClusterByID(i);
-                if (cluster_i.size() >1)
+                IntPairSet outlier_set;
+                IntPairDoubleMap temp_cluster_score_i, consistant_cluster_score_i;
+
+                incremental_solver.initialize_solver();
+
+                if (incremental_solver.analyze_edge_set(file, cluster_i, rejected_loops, outlier_set, t_cmd_args.f_chi2_dif_test_threshold, temp_cluster_score_i))
                 {
-                    IntPairSet outlier_set, new_outlier_set;
-                    incremental_solver.initialize_solver();
-                    IntPairDoubleMap temp_cluster_i, consistant_cluster_i;
-
-                    if (incremental_solver.analyze_edge_set(file, cluster_i, rejected_loops, outlier_set, t_cmd_args.f_chi2_dif_test_threshold, temp_cluster_i))
-                    {
-                        consistant_cluster_i = temp_cluster_i;
-                    } else{
-                        incremental_solver.initialize_solver();
-                        consistant_cluster_i = incremental_solver.analyze_outlier_set(file, outlier_set, rejected_loops, t_cmd_args.f_chi2_dif_test_threshold);
-                    }
-
-                    std::cout << " " << std::endl; //add empty line to indicate clustering
-                    rewind(file);
-
-                    for (IntPairDoubleMap::const_iterator ite = consistant_cluster_i.begin(); ite != consistant_cluster_i.end(); ite++)
-                    {
-                        fprintf(clustering_output_file, "CLUSTER %d %d %lf\n", ite->first.first, ite->first.second, ite->second);
-                    }
-                    fprintf(clustering_output_file, "\n"); // add one new line to separate clusters in text output file
-
-                    //std::cout << "leaving if loop" << std::endl;
-
+                    consistant_cluster_score_i = temp_cluster_score_i;
                 } else{
-                    fprintf(clustering_output_file, "CLUSTER %d %d %lf\n", cluster_i.begin()->first, cluster_i.begin()->second, 0.0);
-                    fprintf(clustering_output_file, "\n");
-                }
-                //std::cout << "leaving for loop" << std::endl;
 
+                    incremental_solver.initialize_solver();
+                    consistant_cluster_score_i = incremental_solver.analyze_outlier_set(file, outlier_set, rejected_loops, t_cmd_args.f_chi2_dif_test_threshold);
+                }
+
+                std::cout << " " << std::endl; //add empty line to indicate clustering
+                rewind(file);
+
+                for (IntPairDoubleMap::const_iterator ite = consistant_cluster_score_i.begin(); ite != consistant_cluster_score_i.end(); ite++)
+                {
+                    fprintf(clustering_output_file, "CLUSTER %d %d %lf\n", ite->first.first, ite->first.second, ite->second);
+                }
+                fprintf(clustering_output_file, "\n"); // add one new line to separate clusters in text output file
+
+                //std::cout << "leaving if loop" << std::endl;
+
+            } else{
+                fprintf(clustering_output_file, "CLUSTER %d %d %lf\n", cluster_i.begin()->first, cluster_i.begin()->second, 0.0);
+                fprintf(clustering_output_file, "\n");
             }
-        }// analyze the clusters
+            //std::cout << "leaving for loop" << std::endl;
+
+        }
+        // analyze the clusters
 
     }
     else
@@ -184,7 +181,7 @@ bool LoadLoopClosures(const char* file_name, IntPairSet& loops)
         }
         else if(strList.size())
         {
-            fprintf(stderr, "Error parsing graph file");
+            fprintf(stderr, "Load_loop_closures: Error parsing graph file");
         }
     }
 
@@ -197,14 +194,6 @@ bool LoadLoopClosures(const char* file_name, IntPairSet& loops)
 
 void TCommandLineArgs::Defaults()
 {
-    n_solver_choice = nlsolver_Lambda; /**< @brief nonlinear solver selector */
-    // solver selection
-
-    b_write_bitmaps = true;
-    b_write_solution = true;
-    b_xz_plots = false;
-    b_write_system_matrix = false;
-    b_no_show = false;
     b_show_commandline = true;
     b_show_flags = true;
     b_show_detailed_timing = true;
@@ -213,8 +202,6 @@ void TCommandLineArgs::Defaults()
 
     b_use_schur = false;
 
-    b_run_matrix_benchmarks = false;
-    b_run_matrix_unit_tests = false;
     b_use_old_system = false; // t_odo - make this commandline
     b_pose_only = false;
     b_use_SE3 = false; // note this is not overriden in commandline but detected in peek-parsing
@@ -233,8 +220,6 @@ void TCommandLineArgs::Defaults()
     f_final_optimization_threshold = 0.01;
     // optimization mode for slam
 
-    p_s_bench_name = 0;
-    p_s_bench_type = "all";
 
     n_omp_threads = size_t(-1);
     b_omp_dynamic = false;
@@ -327,41 +312,16 @@ bool TCommandLineArgs::Parse(int n_arg_num, const char **p_arg_list)
             b_verbose = false;
         else if(!strcmp(p_arg_list[i], "--use-schur") || !strcmp(p_arg_list[i], "-us"))
             b_use_schur = true;
-        else if(!strcmp(p_arg_list[i], "--no-show") || !strcmp(p_arg_list[i], "-ns"))
-            b_no_show = true;
         else if(!strcmp(p_arg_list[i], "--no-commandline") || !strcmp(p_arg_list[i], "-nc"))
             b_show_commandline = false;
-        else if(!strcmp(p_arg_list[i], "--lambda") || !strcmp(p_arg_list[i], "-,\\"))
-            n_solver_choice = nlsolver_Lambda;
-        else if(!strcmp(p_arg_list[i], "--lambda-lm") || !strcmp(p_arg_list[i], "-,\\lm"))
-            n_solver_choice = nlsolver_LambdaLM;
-        else if(!strcmp(p_arg_list[i], "--lambda-dl") || !strcmp(p_arg_list[i], "-,\\dl"))
-            n_solver_choice = nlsolver_LambdaDL;
         else if(!strcmp(p_arg_list[i], "--no-flags") || !strcmp(p_arg_list[i], "-nf"))
             b_show_flags = false;
-        else if(!strcmp(p_arg_list[i], "--run-matrix-unit-tests") || !strcmp(p_arg_list[i], "-rmut"))
-            b_run_matrix_unit_tests = true;
         else if(!strcmp(p_arg_list[i], "--no-detailed-timing") || !strcmp(p_arg_list[i], "-ndt"))
             b_show_detailed_timing = false;
         else if(!strcmp(p_arg_list[i], "--use-old-code") || !strcmp(p_arg_list[i], "-uogc"))
             b_use_old_system = true;
-        else if(!strcmp(p_arg_list[i], "--dump-system-matrix") || !strcmp(p_arg_list[i], "-dsm"))
-            b_write_system_matrix = true;
-        else if(!strcmp(p_arg_list[i], "--no-bitmaps") || !strcmp(p_arg_list[i], "-nb")) {
-            b_write_bitmaps = false;
-            b_no_show = true; // no bitmaps ... what can it show?
-        } else if(!strcmp(p_arg_list[i], "--no-solution") || !strcmp(p_arg_list[i], "-ns"))
-            b_write_solution = false;
-        else if(!strcmp(p_arg_list[i], "--xz-plots") || !strcmp(p_arg_list[i], "-xz"))
-            b_xz_plots = true;
         else if(!strcmp(p_arg_list[i], "--pose-only") || !strcmp(p_arg_list[i], "-po"))
             b_pose_only = true;
-        else if(!strcmp(p_arg_list[i], "--a-solver") || !strcmp(p_arg_list[i], "-A"))
-            n_solver_choice = nlsolver_A;
-        else if(!strcmp(p_arg_list[i], "--l-solver") || !strcmp(p_arg_list[i], "-L"))
-            n_solver_choice = nlsolver_L;
-        else if(!strcmp(p_arg_list[i], "--fast-l") || !strcmp(p_arg_list[i], "-fL"))
-            n_solver_choice = nlsolver_FastL;
         else if(i + 1 == n_arg_num) {
             fprintf(stderr, "error: argument \'%s\': missing value or an unknown argument\n", p_arg_list[i]);
             return false;
@@ -389,21 +349,7 @@ bool TCommandLineArgs::Parse(int n_arg_num, const char **p_arg_list)
             n_omp_threads = atol(p_arg_list[++ i]);
         else if(!strcmp(p_arg_list[i], "--omp-set-dynamic"))
             b_omp_dynamic = (atol(p_arg_list[++ i]) != 0);
-        else if(!strcmp(p_arg_list[i], "--run-matrix-benchmarks") || !strcmp(p_arg_list[i], "-rmb")) {
-            if(i + 2 >= n_arg_num) {
-                fprintf(stderr, "error: argument \'%s\': missing the second value\n", p_arg_list[i]);
-                return false;
-            }
-            b_run_matrix_benchmarks = true;
-            p_s_bench_name = p_arg_list[++ i];
-            p_s_bench_type = p_arg_list[++ i];
-            if(strcmp(p_s_bench_type, "alloc") &&
-               strcmp(p_s_bench_type, "factor") &&
-               strcmp(p_s_bench_type, "all")) {
-                fprintf(stderr, "error: argument \'%s\': unknown benchmark type\n", p_arg_list[i]);
-                return false;
-            }
-        } else if(!strcmp(p_arg_list[i], "--dummy-param") || !strcmp(p_arg_list[i], "-dp"))
+        else if(!strcmp(p_arg_list[i], "--dummy-param") || !strcmp(p_arg_list[i], "-dp"))
             n_dummy_param = atol(p_arg_list[++ i]);
         else {
             fprintf(stderr, "error: argument \'%s\': an unknown argument\n", p_arg_list[i]);
