@@ -707,6 +707,8 @@ public:
 			if(b_keep_pose) {
 				v_cum_measurement = r_edge.v_measurement;
 				t_cum_information = r_edge.t_information;
+				std::cout << "print measurement: " << v_cum_measurement << std::endl;
+                std::cout << "print information: " << t_cum_information << std::endl;
 				// the first step is simple
 
 				compact_edge_lengths.push_back((pruned_edge_lengths.empty())? 1 : pruned_edge_lengths[i]);	// insert new edge counter

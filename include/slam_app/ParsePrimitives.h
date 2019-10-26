@@ -535,6 +535,9 @@ public:
 				axis(0), axis(1), axis(2), p_matrix);
 			// process the measurement
 
+			std::cout << "input measurement: " << p_measurement[3] << ", " << p_measurement[4] << ", " << p_measurement[5] << std::endl;
+			std::cout << "saved_measurement: " << axis(0) << ", " << axis(1) << ", " << axis(2) << std::endl;
+
 			r_parse_loop.AppendSystem(edge);
 			// append the measurement to the system, or something
 		} else {

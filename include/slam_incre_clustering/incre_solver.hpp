@@ -12,28 +12,52 @@
 #include "slam_app/ParsePrimitives.h"
 #include "rrr/types.hpp"
 #include "slam_incre_clustering/utils.hpp"
-#include "slam_incre_clustering/utilities.h"
+#include "slam_incre_clustering/dataset_loader.hpp"
 
 
+template <const bool b_2D_SLAM>
+class Incre_Solver{
 
-class solver_2d{
+    Dataset_Loader dataset_loader;
+
 public:
-    typedef MakeTypelist(CVertexPose2D) TVertexTypelist;
-    typedef MakeTypelist(CEdgePose2D) TEdgeTypelist;
-    typedef CFlatSystem<CVertexPose2D, TVertexTypelist, CEdgePose2D, TEdgeTypelist> CSystemType;
-    typedef CLinearSolver_UberBlock<CSystemType::_TyHessianMatrixBlockList> CLinearSolverType;
-    typedef CNonlinearSolver_Lambda<CSystemType, CLinearSolverType> CSolverType;
+    /**
+     *	@brief parameters stored as enum
+     */
+    enum {
+        n_pose_dimension = (b_2D_SLAM)? 3 : 6,                 /**< @brief vertex dimension */
+        n_pose_dimension_doubled = (b_2D_SLAM)? 6 : 12
+    };
+
+    typedef TEdgeData<n_pose_dimension> _TyEdgeData; /**< @brief parsed edge type */
+    typedef Eigen::Matrix<double, n_pose_dimension, n_pose_dimension> _TyMatrix; /**< @copydoc _TyEdgeData::_TyMatrix */
+    typedef Eigen::Matrix<double, n_pose_dimension, 1> _TyVector; /**< @copydoc _TyEdgeData::_TyVector */
+    typedef Eigen::Matrix<double, n_pose_dimension, n_pose_dimension_doubled> _TyJoinMatrix;
+    typedef Eigen::Matrix<double, n_pose_dimension_doubled, n_pose_dimension_doubled> _TyCovMatrix;
+
+    typedef typename CChooseType<CVertexPose2D, CVertexPose3D, b_2D_SLAM>::_TyResult _TyVertexPose; /**< @brief pose vertex type */
+    typedef typename CChooseType<CEdgePose2D, CEdgePose3D, b_2D_SLAM>::_TyResult _TyEdgePose; /**< @brief pose-pose edge type */
+
+
+    typedef typename MakeTypelist(_TyVertexPose) TVertexTypelist; /**< @brief list of vertex types */
+    typedef typename MakeTypelist(_TyEdgePose) TEdgeTypelist; /**< @brief list of edge types */
+    typedef CFlatSystem<_TyVertexPose, TVertexTypelist, _TyEdgePose, TEdgeTypelist> CSystemType; /**< @brief optimized system type */
+    typedef CLinearSolver_UberBlock<typename CSystemType::_TyHessianMatrixBlockList> CLinearSolverType; /**< @brief linear solver type */
+    typedef CNonlinearSolver_Lambda<CSystemType, CLinearSolverType> CSolverType; /**< @brief nonlinear solver type */
+
 
 
 protected:
     CSystemType* system = NULL;
     CSolverType* solver = NULL;
+    std::vector<_TyEdgeData> edges;
+    std::vector<_TyEdgeData> loop_closures;
 
 public:
-    solver_2d()
+    Incre_Solver()
     {}
 
-    ~solver_2d()
+    ~Incre_Solver()
     {
         if (system != NULL)
         {
@@ -63,18 +87,39 @@ public:
 
     }
 
-
-    double calculate_ofc( CEdgePose2D &new_edge, Eigen::MatrixXd &information, int vertex_from, int vertex_to)
+    bool load_dataset_into_object(const char *p_s_input_file)
     {
-        Eigen::Matrix3d r_t_jacobian0, r_t_jacobian1, cov_inv, innovation_cov;
-        Eigen::Vector3d r_v_expectation, r_v_error;
+        if(!dataset_loader.Load_Dataset(p_s_input_file, edges))
+            return false;
+        // put all dataset edges into edges
+
+        for(size_t i = 0, n = edges.size(); i < n; ++ i) {
+            const _TyEdgeData &r_edge = edges[i];
+            if((r_edge.p_vertex[1] - r_edge.p_vertex[0]) != 1 ) {
+                loop_closures.push_back(r_edge);
+                // put it to the list of loop closures
+
+            }
+            // check loop closures
+        }
+
+        return true;
+    }
+
+
+
+    double calculate_ofc(_TyEdgePose &new_edge, const _TyMatrix &information, int vertex_from, int vertex_to)
+    {
+        _TyMatrix r_t_jacobian0, r_t_jacobian1, cov_inv, innovation_cov;
+        _TyVector r_v_expectation, r_v_error;
         new_edge.Calculate_Jacobians_Expectation_Error(r_t_jacobian0, r_t_jacobian1, r_v_expectation,r_v_error);
 
-        Eigen::MatrixXd joined_matrix(3,6);
+        _TyJoinMatrix joined_matrix;
         joined_matrix << - r_t_jacobian0, - r_t_jacobian1;
-        Eigen::MatrixXd marginal_covariance(6,6);
+        _TyCovMatrix marginal_covariance;
 
-        Eigen::MatrixXd covariance_idfrom(3,3), covariance_idto(3,3), covariance_idtofrom(3,3), covariance_idfromto(3,3);
+        Eigen::MatrixXd covariance_idfrom, covariance_idto, covariance_idtofrom, covariance_idfromto;
+        // TODO_LOCAL: why using _TyMatrix instead of Eigen::MatrixXd here cause compilation error about rvalue in next line//
         solver->r_MarginalCovariance().save_Diagonal(covariance_idfrom, vertex_from, vertex_from);
         solver->r_MarginalCovariance().save_Diagonal(covariance_idto, vertex_to, vertex_to);
         if (vertex_from > vertex_to)
@@ -97,107 +142,73 @@ public:
         cov_inv = innovation_cov.inverse();
 
         double del_obj_function = r_v_error.dot(cov_inv * r_v_error);
-        double mi_gain = log(innovation_cov.determinant() / information.inverse().determinant());// TODO_LOCAL: maybe this increases the processing time?
+        //double mi_gain = log(innovation_cov.determinant() / information.inverse().determinant());// TODO_LOCAL: maybe this increases the processing time?
 
         return del_obj_function;
     }
 
-    bool analyze_edge_set(FILE * file_pointer, IntPairSet& cluster, IntPairSet& rejected_loops, IntPairSet& Outlier_Set, float chi2_threshold, IntPairDoubleMap& loops_score)
+    bool analyze_edge_set(IntPairSet& cluster, IntPairSet& rejected_loops, IntPairSet& Outlier_Set, float chi2_threshold, IntPairDoubleMap& loops_score)
     {
-        char line[400];
         int counter = 0;
 
         std::cout <<"number of edges(should be 0): " << system->n_Edge_Num() << std::endl;
         std::cout << "number of nodes(should be 0): " << system->n_Vertex_Num() << std::endl;
 
-        while ( fgets (line , 400 , file_pointer) != NULL and counter < cluster.size())
+        for (typename std::vector<_TyEdgeData>::const_iterator iter = edges.begin(); iter != edges.end(); iter ++)
         {
-            //solver->Delay_Optimization(); //don't start optimizing right away
-            std::vector<std::string> strList = uListToVector(uSplit(uReplaceChar(line, '\n', ' '), ' '));
-            if(strList.size() == 30)
+
+            _TyEdgePose new_edge = _TyEdgePose(iter->p_vertex[0], iter->p_vertex[1], iter->v_measurement, iter->t_information, *system);
+
+            if ((iter->p_vertex[1] - iter->p_vertex[0]) != 1) // if reached loop closure edge
             {
-                //EDGE_SE3:QUAT
-                /*int idFrom = atoi(strList[1].c_str());
-                int idTo = atoi(strList[2].c_str());
-                float x = uStr2Float(strList[3]);
-                float y = uStr2Float(strList[4]);
-                float z = uStr2Float(strList[5]);
-                float roll = uStr2Float(strList[6]);
-                float pitch = uStr2Float(strList[7]);
-                float yaw = uStr2Float(strList[8]);
-                Eigen::Matrix<double, 6, 1> edge;
-                edge << x, y, z, roll, pitch, yaw;
 
-                system.r_Add_Edge(CEdgePose3D(idFrom, idTo, edge, information, system));
-                 */
-            }
-            else if(strList.size() == 12)
-            {
-                //EDGE_SE2
-                int vertex_from = atoi(strList[1].c_str());
-                int vertex_to = atoi(strList[2].c_str());
-                double x = uStr2Double(strList[3]);
-                double y = uStr2Double(strList[4]);
-                double rot = uStr2Double(strList[5]);
+                //solver.Optimize(5, 1e-5);
 
-                Eigen::MatrixXd information(3,3);
-                information << uStr2Double(strList[6]), uStr2Double(strList[7]), uStr2Double(strList[8]),
-                    uStr2Double(strList[7]), uStr2Double(strList[9]), uStr2Double(strList[10]),
-                    uStr2Double(strList[8]), uStr2Double(strList[10]), uStr2Double(strList[11]);
+                //double before = solver.get_residual_chi2_error();
+                IntPair edge_pair(iter->p_vertex[0], iter->p_vertex[1]);
+                const bool is_in = cluster.find(edge_pair) != cluster.end();
 
-                CEdgePose2D new_edge;
-                new_edge = CEdgePose2D(vertex_from, vertex_to, Eigen::Vector3d(x, y, rot), information, *system);
-
-                if ((vertex_to - vertex_from) != 1) // if reached loop closure edge
+                if (is_in == true)
                 {
+                    //std::cout <<"number of edges: " << system->n_Edge_Num() << std::endl;
+                    //std::cout << "number of nodes: " << system->n_Vertex_Num() << std::endl;
+                    counter +=1;
+                    //solver->Enable_Optimization(); //enable optimization when there is a LC edge
+                    solver->Optimize();
+                    double delta_obj = calculate_ofc(new_edge, iter->t_information, iter->p_vertex[0], iter->p_vertex[1]);
+                    // TODO_LOCAL: why iter->t_information is rvalue?
 
-                    //solver.Optimize(5, 1e-5);
+                    int dof = n_pose_dimension; // difference between previous iteration, instead of dof of the whole graph
+                    // multiplied by 3 in 2D cases
+                    double evil_scale = utils::p(fabs(delta_obj), dof);  // handle negative value
+                    loops_score[edge_pair] = evil_scale;
 
-                    //double before = solver.get_residual_chi2_error();
-                    IntPair edge_pair(vertex_from, vertex_to);
-                    const bool is_in = cluster.find(edge_pair) != cluster.end();
+                    {   // use chi2 difference test
 
-                    if (is_in == true)
-                    {
-                        //std::cout <<"number of edges: " << system->n_Edge_Num() << std::endl;
-                        //std::cout << "number of nodes: " << system->n_Vertex_Num() << std::endl;
-                        counter +=1;
-                        //solver->Enable_Optimization(); //enable optimization when there is a LC edge
-                        solver->Optimize();
-                        double delta_obj = calculate_ofc(new_edge, information, vertex_from, vertex_to);
+                        std::cout << "edge: " << iter->p_vertex[0] << " "  << iter->p_vertex[1] << " " << evil_scale << std::endl;
+                        if (fabs(delta_obj) < utils::chi2(dof, chi2_threshold))
+                        {
 
-                        int dof = 3 * 1; // difference between previous iteration, instead of dof of the whole graph
-                        // multiplied by 3 in 2D cases
-                        double evil_scale = utils::p(fabs(delta_obj), dof);  // handle negative value
-                        loops_score[edge_pair] = evil_scale;
+                            //solver->Incremental_Step(system->r_Add_Edge(new_edge)); // incrementally solve
+                            system->r_Add_Edge(new_edge);
 
-                        {   // use chi2 difference test
-
-                            std::cout << "edge: " << vertex_from << " "  << vertex_to << " " << evil_scale << std::endl;
-                            if (fabs(delta_obj) < utils::chi2(dof, chi2_threshold))
-                            {
-
-                                //solver->Incremental_Step(system->r_Add_Edge(new_edge)); // incrementally solve
-                                system->r_Add_Edge(new_edge);
-
-                            }
                         }
-
                     }
-                }
-                else{ // odometry edge
-                    //solver->Delay_Optimization(); //don't start optimizing right away
-                    //solver->Incremental_Step(system->r_Add_Edge(new_edge));
-                    system->r_Add_Edge(new_edge);
 
                 }
+            }
+            else{ // odometry edge
+                //solver->Delay_Optimization(); //don't start optimizing right away
+                //solver->Incremental_Step(system->r_Add_Edge(new_edge));
+                system->r_Add_Edge(new_edge);
 
             }
-            else if(strList.size())
-            {
-                fprintf(stderr, "analyze_edge_set: Error parsing graph file");
-            }
+
+            if (counter >= cluster.size())
+                break;
+
         }
+
 
         std::cout <<"number of edges: " << system->n_Edge_Num() << std::endl;
         std::cout << "number of nodes: " << system->n_Vertex_Num() << std::endl;
@@ -257,111 +268,74 @@ public:
 
     }
 
-    IntPairDoubleMap analyze_outlier_set(FILE * file_pointer, IntPairSet& cluster, IntPairSet & rejected_loops, float chi2_threshold)
+    IntPairDoubleMap analyze_outlier_set(IntPairSet& cluster, IntPairSet & rejected_loops, float chi2_threshold)
     {
-        rewind(file_pointer); // reset the file pointer to the beginning
         std::cout <<"number of edges(should be 0): " << system->n_Edge_Num() << std::endl;
         std::cout << "number of nodes(should be 0: " << system->n_Vertex_Num() << std::endl;
 
-        char line[400];
         int counter = 0;
 
         IntPairDoubleMap loops_score;
         bool first_outlier_added = false;
 
-        while ( fgets (line , 400 , file_pointer) != NULL and counter < cluster.size())
+        for (typename std::vector<_TyEdgeData>::const_iterator iter = edges.begin(); iter != edges.end(); iter ++)
         {
-            //solver->Delay_Optimization(); //don't start optimizing right away
-            std::vector<std::string> strList = uListToVector(uSplit(uReplaceChar(line, '\n', ' '), ' '));
-            if(strList.size() == 30)
+
+            _TyEdgePose new_edge = _TyEdgePose(iter->p_vertex[0], iter->p_vertex[1], iter->v_measurement, iter->t_information, * system);
+
+            if ((iter->p_vertex[1] - iter->p_vertex[0]) != 1) // if reached loop closure edge
             {
-                //EDGE_SE3:QUAT
-                /*int idFrom = atoi(strList[1].c_str());
-                int idTo = atoi(strList[2].c_str());
-                float x = uStr2Float(strList[3]);
-                float y = uStr2Float(strList[4]);
-                float z = uStr2Float(strList[5]);
-                float roll = uStr2Float(strList[6]);
-                float pitch = uStr2Float(strList[7]);
-                float yaw = uStr2Float(strList[8]);
-                Eigen::Matrix<double, 6, 1> edge;
-                edge << x, y, z, roll, pitch, yaw;
 
-                system.r_Add_Edge(CEdgePose3D(idFrom, idTo, edge, information, system));
-                 */
-            }
-            else if(strList.size() == 12)
-            {
-                //EDGE_SE2
-                int vertex_from = atoi(strList[1].c_str());
-                int vertex_to = atoi(strList[2].c_str());
-                double x = uStr2Double(strList[3]);
-                double y = uStr2Double(strList[4]);
-                double rot = uStr2Double(strList[5]);
+                //solver.Optimize(5, 1e-5);
 
-                Eigen::MatrixXd information(3,3);
-                information << uStr2Double(strList[6]), uStr2Double(strList[7]), uStr2Double(strList[8]),
-                    uStr2Double(strList[7]), uStr2Double(strList[9]), uStr2Double(strList[10]),
-                    uStr2Double(strList[8]), uStr2Double(strList[10]), uStr2Double(strList[11]);
-
-                CEdgePose2D new_edge;
-                new_edge = CEdgePose2D(vertex_from, vertex_to, Eigen::Vector3d(x, y, rot), information, * system);
-
-                if ((vertex_to - vertex_from) != 1) // if reached loop closure edge
+                IntPair edge_pair(iter->p_vertex[0], iter->p_vertex[1]);
+                const bool is_in = cluster.find(edge_pair) != cluster.end();
+                if (is_in == true)
                 {
+                    counter +=1;
 
-                    //solver.Optimize(5, 1e-5);
+                    //solver->Enable_Optimization(); //enable optimization when there is a LC edge
+                    solver->Optimize(5, 1e-5);
+                    double delta_obj = calculate_ofc(new_edge, iter->t_information, iter->p_vertex[0], iter->p_vertex[1]);
 
-                    IntPair edge_pair(vertex_from, vertex_to);
-                    const bool is_in = cluster.find(edge_pair) != cluster.end();
-                    if (is_in == true)
+                    int dof = n_pose_dimension * 1; // difference between previous iteration, instead of the current dof
+                    // multiplied by 3 in 2D cases
+                    double evil_scale = utils::p(fabs(delta_obj), dof);  // handle negative value
+                    std::cout << "edge: " << iter->p_vertex[0] << " "  << iter->p_vertex[1] << " " << evil_scale << std::endl;
+
+                    // all edges entered this function should eventually get score 0.0, but not here.
+                    // because their actual score will be needed later to determine their status within this cluster
+                    if (first_outlier_added == true)
                     {
-                        counter +=1;
+                        loops_score[edge_pair] = evil_scale;
 
-                        //solver->Enable_Optimization(); //enable optimization when there is a LC edge
-                        solver->Optimize(5, 1e-5);
-                        double delta_obj = calculate_ofc(new_edge, information,  vertex_from, vertex_to);
-
-                        int dof = 3 * 1; // difference between previous iteration, instead of the current dof
-                        // multiplied by 3 in 2D cases
-                        double evil_scale = utils::p(fabs(delta_obj), dof);  // handle negative value
-                        std::cout << "edge: " << vertex_from << " "  << vertex_to << " " << evil_scale << std::endl;
-
-                        // all edges entered this function should eventually get score 0.0, but not here.
-                        // because their actual score will be needed later to determine their status within this cluster
-                        if (first_outlier_added == true)
+                        // use chi2 difference test
+                        if (fabs(delta_obj) < utils::chi2(dof, chi2_threshold))
                         {
-                            loops_score[edge_pair] = evil_scale;
-
-                            // use chi2 difference test
-                            if (fabs(delta_obj) < utils::chi2(dof, chi2_threshold))
-                            {
-                                //solver->Incremental_Step(system->r_Add_Edge(new_edge)); // incrementally solve
-                                system->r_Add_Edge(new_edge);
-
-                            }
-
-                        } else{
-                            first_outlier_added = true;
+                            //solver->Incremental_Step(system->r_Add_Edge(new_edge)); // incrementally solve
                             system->r_Add_Edge(new_edge);
-                            loops_score[edge_pair] = 0.0 ; //1st edge is  accepted anyway
+
                         }
 
+                    } else{
+                        first_outlier_added = true;
+                        system->r_Add_Edge(new_edge);
+                        loops_score[edge_pair] = 0.0 ; //1st edge is  accepted anyway
                     }
 
-
-                }
-                else{ // odometry edge
-                    //solver->Delay_Optimization(); //don't start optimizing right away
-                    //solver->Incremental_Step(system->r_Add_Edge(new_edge));
-                    system->r_Add_Edge(new_edge);
                 }
 
+
             }
-            else if(strList.size())
-            {
-                fprintf(stderr, "analyze_outlier_set: Error parsing graph file");
+            else{ // odometry edge
+                //solver->Delay_Optimization(); //don't start optimizing right away
+                //solver->Incremental_Step(system->r_Add_Edge(new_edge));
+                system->r_Add_Edge(new_edge);
             }
+
+            if (counter >= cluster.size())
+                break;
+
         }
 
         std::cout <<"number of edges: " << system->n_Edge_Num() << std::endl;
@@ -408,7 +382,7 @@ public:
 
                 std::cout << "Need third test" << std::endl;
                 initialize_solver(); // clean the system and solver
-                return analyze_outlier_set(file_pointer, Outlier_Set, rejected_loops, chi2_threshold);
+                return analyze_outlier_set(Outlier_Set, rejected_loops, chi2_threshold);
 
             }
 

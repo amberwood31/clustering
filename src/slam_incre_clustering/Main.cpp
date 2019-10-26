@@ -74,12 +74,13 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     IntPairSet rejected_loops;
     const char *clustering_outputs = "clustering_results.txt";
     FILE * clustering_output_file = fopen(clustering_outputs, "w");
-    FILE * file = fopen(t_cmd_args.p_s_input_file, "r");
+
 
     start = t.f_Time();
     if (graph_2d)
     {
-        solver_2d incremental_solver;
+        Incre_Solver<true> incremental_solver;
+        incremental_solver.load_dataset_into_object(t_cmd_args.p_s_input_file);
 
         for (size_t i=0; i< clusterizer.clusterCount();i++) // TODO_LOCAL: is this the most efficient way?
         {
@@ -92,17 +93,16 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 
                 incremental_solver.initialize_solver();
 
-                if (incremental_solver.analyze_edge_set(file, cluster_i, rejected_loops, outlier_set, t_cmd_args.f_chi2_dif_test_threshold, temp_cluster_score_i))
+                if (incremental_solver.analyze_edge_set(cluster_i, rejected_loops, outlier_set, t_cmd_args.f_chi2_dif_test_threshold, temp_cluster_score_i))
                 {
                     consistant_cluster_score_i = temp_cluster_score_i;
                 } else{
 
                     incremental_solver.initialize_solver();
-                    consistant_cluster_score_i = incremental_solver.analyze_outlier_set(file, outlier_set, rejected_loops, t_cmd_args.f_chi2_dif_test_threshold);
+                    consistant_cluster_score_i = incremental_solver.analyze_outlier_set(outlier_set, rejected_loops, t_cmd_args.f_chi2_dif_test_threshold);
                 }
 
                 std::cout << " " << std::endl; //add empty line to indicate clustering
-                rewind(file);
 
                 for (IntPairDoubleMap::const_iterator ite = consistant_cluster_score_i.begin(); ite != consistant_cluster_score_i.end(); ite++)
                 {
@@ -124,7 +124,48 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     }
     else
     {
-        fprintf(stderr, "3D not supported yet");
+        Incre_Solver<false> incremental_solver;
+        incremental_solver.load_dataset_into_object(t_cmd_args.p_s_input_file);
+
+
+        for (size_t i=0; i< clusterizer.clusterCount();i++) // TODO_LOCAL: is this the most efficient way?
+        {
+            std::cout << "Analyzing cluster " << i << std::endl;
+            IntPairSet cluster_i = clusterizer.getClusterByID(i);
+            if (cluster_i.size() >1) // only analyze clusters that have multiple edges
+            {
+                IntPairSet outlier_set;
+                IntPairDoubleMap temp_cluster_score_i, consistant_cluster_score_i;
+
+                incremental_solver.initialize_solver();
+
+                if (incremental_solver.analyze_edge_set(cluster_i, rejected_loops, outlier_set, t_cmd_args.f_chi2_dif_test_threshold, temp_cluster_score_i))
+                {
+                    consistant_cluster_score_i = temp_cluster_score_i;
+                } else{
+
+                    incremental_solver.initialize_solver();
+                    consistant_cluster_score_i = incremental_solver.analyze_outlier_set(outlier_set, rejected_loops, t_cmd_args.f_chi2_dif_test_threshold);
+                }
+
+                std::cout << " " << std::endl; //add empty line to indicate clustering
+
+                for (IntPairDoubleMap::const_iterator ite = consistant_cluster_score_i.begin(); ite != consistant_cluster_score_i.end(); ite++)
+                {
+                    fprintf(clustering_output_file, "CLUSTER %d %d %lf\n", ite->first.first, ite->first.second, ite->second);
+                }
+                fprintf(clustering_output_file, "\n"); // add one new line to separate clusters in text output file
+
+                //std::cout << "leaving if loop" << std::endl;
+
+            } else{
+                fprintf(clustering_output_file, "CLUSTER %d %d %lf\n", cluster_i.begin()->first, cluster_i.begin()->second, 0.0);
+                fprintf(clustering_output_file, "\n");
+            }
+            //std::cout << "leaving for loop" << std::endl;
+
+        }
+        // analyze the clusters
     }
 
 
@@ -132,7 +173,6 @@ int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
     {
         fprintf(clustering_output_file, "CLUSTER_R %d %d\n", ii->first, ii->second);
     }
-    fclose(file);
     fclose(clustering_output_file);
 
     end = t.f_Time();
@@ -152,7 +192,7 @@ bool LoadLoopClosures(const char* file_name, IntPairSet& loops)
     while ( fgets (line , 400 , file) != NULL )
     {
         std::vector<std::string> strList = uListToVector(uSplit(uReplaceChar(line, '\n', ' '), ' '));
-        if(strList.size() == 30 && strList[0] == edge_3d_signature)
+        if(strList.size() == 31 && strList[0] == edge_3d_signature)
         {
             //EDGE_SE3:QUAT
             graph_2d = false;
