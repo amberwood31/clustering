@@ -1,0 +1,82 @@
+set(CMAKE_BUILD_TYPE Release)
+
+# Set required variables.
+SET(SLAM_EXAMPLE_STATICLIB_NAME "slam_incre_clustering_lib")
+
+SET(STATICLIB_NAME "optimizer_static")
+
+FILE(GLOB_RECURSE SLAM_EXAMPLE_HEADERS ${SLAM_P_P_SOURCE_DIR}/include/slam_incre_clustering_lib/*.h ${SLAM_P_P_SOURCE_DIR}/include/slam/*.h)
+
+
+IF(SLAM_P_P_SHORT_CXSPARSE)
+    ADD_DEFINITIONS(-D__CXSPARSE_SHORT)
+ENDIF(SLAM_P_P_SHORT_CXSPARSE)
+
+IF(SLAM_P_P_SHORT_CHOLMOD)
+    ADD_DEFINITIONS(-D__CHOLMOD_SHORT)
+ENDIF(SLAM_P_P_SHORT_CHOLMOD)
+
+IF(SLAM_P_P_FLAT_SYSTEM_ALIGNED_MEMORY)
+    ADD_DEFINITIONS(-D__FLAT_SYSTEM_ALIGNED_MEMORY)
+ENDIF(SLAM_P_P_FLAT_SYSTEM_ALIGNED_MEMORY)
+
+# support for GPU BLAS
+IF(SLAM_P_P_GPU_BLAS)
+    ADD_DEFINITIONS(
+            -DGPU_BLAS
+            -D__CHANNEL_DESCRIPTOR_H__
+            -D__CUDA_RUNTIME_H__)
+ENDIF(SLAM_P_P_GPU_BLAS)
+
+ADD_DEFINITIONS(-DCERES_NO_PROTOCOL_BUFFERS)
+
+SET(SLAM_EXAMPLE_SOURCES
+        Main.cpp
+        OptimizerSLAMPP.cpp)
+
+IF(SLAM_P_P_LINEAR_SOLVER_TYPE)
+    ADD_DEFINITIONS("-D__LINEAR_SOLVER_OVERRIDE=${SLAM_P_P_LINEAR_SOLVER_TYPE}")
+ENDIF(SLAM_P_P_LINEAR_SOLVER_TYPE)
+
+
+# Build static library
+ADD_LIBRARY(${STATICLIB_NAME} SHARED OptimizerSLAMPP.cpp)
+SET_TARGET_PROPERTIES(${STATICLIB_NAME} PROPERTIES PUBLIC_HEADER "${SLAM_EXAMPLE_HEADERS}")
+
+ADD_EXECUTABLE(${SLAM_EXAMPLE_STATICLIB_NAME} Main.cpp ${SLAM_EXAMPLE_HEADERS})
+TARGET_LINK_LIBRARIES(${STATICLIB_NAME} ${SLAM_EXAMPLE_LIBRARIES})
+TARGET_LINK_LIBRARIES(${SLAM_EXAMPLE_STATICLIB_NAME} ${STATICLIB_NAME})
+INSTALL(TARGETS ${SLAM_EXAMPLE_STATICLIB_NAME}
+        RUNTIME DESTINATION bin)
+
+# installing libraries:
+INSTALL(TARGETS ${STATICLIB_NAME}
+        LIBRARY DESTINATION lib/slam_pp
+	ARCHIVE DESTINATION lib/slam_pp
+        PUBLIC_HEADER DESTINATION include/slam_pp)
+#message("check content:  ${SLAM_EXAMPLE_LIBRARIES}")
+#message("check location: ${CMAKE_BINARY_DIR}")
+#SET(COMBINED_LIB ${CMAKE_BINARY_DIR}/libcombi.a)
+#add_custom_target(combined
+#        COMMAND ar -x /home/amber/stew/slam++/lib/lib${STATICLIB_NAME}.a#
+#	COMMAND ar -x /home/amber/stew/slam++/lib/libslampp_base.a
+# 	COMMAND ar -x /home/amber/stew/slam++/lib/libcsparse.a
+#        COMMAND ar -x /home/amber/stew/slam++/lib/libcxsparse.a#
+#	COMMAND ar -x /home/amber/stew/slam++/lib/libcholmod.a
+#	COMMAND ar -x /home/amber/stew/slam++/lib/libeigen.a
+#        COMMAND ar -qcs ${COMBINED_LIB} *.o
+#        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+#        DEPENDS ${STATICLIB_NAME} ${SLAM_EXAMPLE_LIBRARIES}
+#        )
+
+#add_library(c STATIC IMPORTED GLOBAL)
+#add_dependencies(c combined)
+
+#set_target_properties(c
+#        PROPERTIES
+#        IMPORTED_LOCATION ${COMBINED_LIB}
+#        )
+
+#ADD_EXECUTABLE(${SLAM_EXAMPLE_STATICLIB_NAME}_test Main.cpp ${SLAM_EXAMPLE_HEADERS})
+#target_link_libraries(${SLAM_EXAMPLE_STATICLIB_NAME}_test c)
+
