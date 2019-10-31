@@ -3,6 +3,8 @@
 # Set required variables.
 SET(SLAM_EXAMPLE_BINARY_NAME "slam_incre_clustering")
 
+SET(CMAKE_CXX_FLAGS -pg)
+
 SET(SLAM_EXAMPLE_INCLUDE_DIRS
         ${SLAM_P_P_SOURCE_DIR}/include/slam_incre_clustering
         ${SLAM_P_P_SOURCE_DIR}/utilite/include)

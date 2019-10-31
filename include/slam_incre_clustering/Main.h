@@ -6,8 +6,6 @@
 #define SLAM_PLUS_PLUS_MAIN_H
 
 #include "slam/ConfigSolvers.h" // nonlinear graph solvers
-//#include "slam/SE2_Types.h" // SE(2) types
-//#include "slam/SE3_Types.h"
 #include "rrr/types.hpp"
 
 /**

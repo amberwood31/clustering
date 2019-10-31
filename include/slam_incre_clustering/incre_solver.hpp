@@ -13,6 +13,8 @@
 #include "rrr/types.hpp"
 #include "slam_incre_clustering/utils.hpp"
 #include "slam_incre_clustering/dataset_loader.hpp"
+#include "rrr/cluster.hpp"
+
 
 
 template <const bool b_2D_SLAM>
@@ -51,7 +53,7 @@ protected:
     CSystemType* system = NULL;
     CSolverType* solver = NULL;
     std::vector<_TyEdgeData> edges;
-    std::vector<_TyEdgeData> loop_closures;
+    //std::vector<_TyEdgeData> loop_closures;
 
 public:
     Incre_Solver()
@@ -70,6 +72,60 @@ public:
             std::cout << "deleted final solver" << std::endl;
             delete solver;
         }
+    }
+
+    void analyze_cluster(const char * input_file, Clusterizer& clusterizer, double threshold, const char * clustering_output_file)
+    {
+        load_dataset_into_object(input_file);
+        FILE * clustering_outputs = fopen(clustering_output_file, "w");
+        IntPairSet rejected_loops;
+
+        for (size_t i=0; i< clusterizer.clusterCount();i++) // TODO_LOCAL: is this the most efficient way?
+        {
+            std::cout << "Analyzing cluster " << i << std::endl;
+            IntPairSet cluster_i = clusterizer.getClusterByID(i);
+            if (cluster_i.size() >1) // only analyze clusters that have multiple edges
+            {
+                IntPairSet outlier_set;
+                IntPairDoubleMap temp_cluster_score_i, consistant_cluster_score_i;
+
+                initialize_solver();
+
+                if (analyze_edge_set(cluster_i, rejected_loops, outlier_set, threshold, temp_cluster_score_i))
+                {
+                    consistant_cluster_score_i = temp_cluster_score_i;
+                } else{
+
+                    initialize_solver();
+                    consistant_cluster_score_i = analyze_outlier_set(outlier_set, rejected_loops, threshold);
+                }
+
+                std::cout << " " << std::endl; //add empty line to indicate clustering
+
+                for (IntPairDoubleMap::const_iterator ite = consistant_cluster_score_i.begin(); ite != consistant_cluster_score_i.end(); ite++)
+                {
+                    fprintf(clustering_outputs, "CLUSTER %d %d %lf\n", ite->first.first, ite->first.second, ite->second);
+                }
+                fprintf(clustering_outputs, "\n"); // add one new line to separate clusters in text output file
+
+                //std::cout << "leaving if loop" << std::endl;
+
+            } else{
+                fprintf(clustering_outputs, "CLUSTER %d %d %lf\n", cluster_i.begin()->first, cluster_i.begin()->second, 0.0);
+                fprintf(clustering_outputs, "\n");
+            }
+            //std::cout << "leaving for loop" << std::endl;
+
+        }
+        // analyze the clusters
+
+
+        for (IntPairSet::const_iterator ii = rejected_loops.begin(); ii != rejected_loops.end(); ii ++)
+        {
+            fprintf(clustering_outputs, "CLUSTER_R %d %d\n", ii->first, ii->second);
+        }
+        fclose(clustering_outputs);
+
     }
 
     void initialize_solver()
@@ -93,15 +149,15 @@ public:
             return false;
         // put all dataset edges into edges
 
-        for(size_t i = 0, n = edges.size(); i < n; ++ i) {
-            const _TyEdgeData &r_edge = edges[i];
-            if((r_edge.p_vertex[1] - r_edge.p_vertex[0]) != 1 ) {
-                loop_closures.push_back(r_edge);
-                // put it to the list of loop closures
-
-            }
-            // check loop closures
-        }
+//        for(size_t i = 0, n = edges.size(); i < n; ++ i) {
+//            const _TyEdgeData &r_edge = edges[i];
+//            if((r_edge.p_vertex[1] - r_edge.p_vertex[0]) != 1 ) {
+//                loop_closures.push_back(r_edge);
+//                // put it to the list of loop closures
+//
+//            }
+//            // check loop closures
+//        }
 
         return true;
     }

@@ -1,7 +1,7 @@
 /*
 								+---------------------------------+
 								|                                 |
-								|  ***   Über Block Matrix   ***  |
+								|  ***   ï¿½ber Block Matrix   ***  |
 								|                                 |
 								| Copyright  (c) -tHE SWINe- 2013 |
 								|                                 |
@@ -18,7 +18,7 @@
  *	@file include/slam/BlockMatrixFBS.inl
  *	@date 2013
  *	@author -tHE SWINe-
- *	@brief the überblockmatrix fixed block size functions
+ *	@brief the ï¿½berblockmatrix fixed block size functions
  *	@note This file is not to be included; it is automatically included from BlockMatrix.h
  */
 
@@ -1133,7 +1133,7 @@ bool CUberBlockMatrix::MultiplyToWith_FBS(CUberBlockMatrix &r_dest, const CUberB
 	// would be a nice work for a paper, too.
 
 	// no need to implement more cunning algorithms, though (Wiki):
-	// The Coppersmith–Winograd algorithm is frequently used as a building block in other algorithms to
+	// The Coppersmithï¿½Winograd algorithm is frequently used as a building block in other algorithms to
 	// prove theoretical time bounds. However, unlike the Strassen algorithm, it is not used in practice
 	// because it only provides an advantage for matrices so large that they cannot be processed by modern
 	// hardware.
@@ -2372,7 +2372,7 @@ bool CUberBlockMatrix::CholeskyOf_FBS(const CUberBlockMatrix &r_lambda, const st
 		const TColumn &r_col_A_j = r_lambda.m_block_cols_list[j];
 		if(!blockmatrix_detail::CUberBlockMatrix_FBS::CFBS_Cholesky<CBlockMatrixTypelist>::b_Column_Loop(r_col_A_j.n_width, j, n,
 		   m_block_cols_list, r_col_A_j, r_lambda, r_elim_tree, ereach_stack, bitfield, alloc)) {
-			//printf("error: not pos def\n"); // not pos def
+			printf("error: not pos def\n column %ld, %ld", j, n); // not pos def
 			Clear(); // otherwise leaving uninit columns behind, CheckIntegrity() will yell
 			return false;
 		}

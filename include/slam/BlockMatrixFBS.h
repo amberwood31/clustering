@@ -1,7 +1,7 @@
 /*
 								+---------------------------------+
 								|                                 |
-								|  ***   Über Block Matrix   ***  |
+								|  ***   ï¿½ber Block Matrix   ***  |
 								|                                 |
 								| Copyright  (c) -tHE SWINe- 2012 |
 								|                                 |
@@ -18,7 +18,7 @@
  *	@file include/slam/BlockMatrixFBS.h
  *	@date 2012
  *	@author -tHE SWINe-
- *	@brief the überblockmatrix fixed block size implementation
+ *	@brief the ï¿½berblockmatrix fixed block size implementation
  *	@note This file is not to be included; it is automatically included from BlockMatrix.h
  */
 
@@ -4425,6 +4425,13 @@ public:
 
 						Eigen::LLT<_TyDiagMatrix, Eigen::Upper> chol(L_block_jj); // Eigen::LLT only accesses a half of the matrix (upper tri in this case), no need to clear the lower half
 						b_result = (chol.info() == Eigen::Success);
+						//DEBUG
+						if (!b_result)
+                        {
+						    std::cout << "check matrix: " << L_block_jj << std::endl;
+
+                        }
+						//
 						L_block_jj = chol.matrixU(); // t_odo - make sure it will not throw if chol.info() != Eigen::Success // does not, in 3.1.3
 						// calculates cholesky of a square block
 					}
