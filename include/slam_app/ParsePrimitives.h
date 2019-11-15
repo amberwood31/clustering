@@ -535,8 +535,12 @@ public:
 				axis(0), axis(1), axis(2), p_matrix);
 			// process the measurement
 
-			std::cout << "input measurement: " << p_measurement[3] << ", " << p_measurement[4] << ", " << p_measurement[5] << std::endl;
-			std::cout << "saved_measurement: " << axis(0) << ", " << axis(1) << ", " << axis(2) << std::endl;
+			std::cout << "RPY measurement: " << p_measurement[3] << ", " << p_measurement[4] << ", " << p_measurement[5] << std::endl;
+			std::cout << "AXIS_ANGLE measurement: " << axis(0) << ", " << axis(1) << ", " << axis(2) << std::endl;
+            Eigen::Quaterniond v_quat;
+            C3DJacobians::AxisAngle_to_Quat(axis, v_quat);
+            std::cout << "QUAT measurement: " << v_quat.x() << ", " << v_quat.y() << ", " << v_quat.z() << ", " << v_quat.w() << std::endl;
+
 
 			r_parse_loop.AppendSystem(edge);
 			// append the measurement to the system, or something

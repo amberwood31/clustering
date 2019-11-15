@@ -326,7 +326,9 @@ public:
 			const size_t n_block_num = r_lambda.n_BlockColumn_Num();
 			//_ASSERTE(n_block_num == m_p_block_structure->n); // m_p_block_structure unused if AMD employed for ordering
 			r_lambda.Permute_UpperTriangular_To(m_perm, m_p_inv_order, n_block_num, true);
-			_ASSERTE(n_block_num == m_perm.n_BlockColumn_Num());
+            // m_perm.Save_MatrixMarket("debug_lambda_matrix_solve_posdef_blocky"); // used for debugging, increases execution time
+
+            _ASSERTE(n_block_num == m_perm.n_BlockColumn_Num());
 			// fast, shares data (except for a few of transposes here and there)
 
 			if(m_etree.capacity() < n_block_num) {

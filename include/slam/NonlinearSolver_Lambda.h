@@ -13,6 +13,7 @@
 #pragma once
 #ifndef __NONLINEAR_BLOCKY_SOLVER_LAMBDA_INCLUDED
 #define __NONLINEAR_BLOCKY_SOLVER_LAMBDA_INCLUDED
+#include "eigen32/eigen/Eigen/src/Eigenvalues/SelfAdjointEigenSolver.h" // to compute eigen value and check for SPD
 
 /**
  *	@file include/slam/NonlinearSolver_Lambda.h
@@ -27,6 +28,9 @@
 #include "slam/NonlinearSolver_Base.h"
 #include "slam/NonlinearSolver_Lambda_Base.h"
 #include "slam/SE2_Types.h" // SE(2) types
+
+
+
 
 /** \addtogroup nlsolve
  *	@{
@@ -44,6 +48,12 @@ template <class CSystem, class CLinearSolver, class CAMatrixBlockSizes = typenam
 	class CLambdaMatrixBlockSizes = typename CSystem::_TyHessianMatrixBlockList>
 class CNonlinearSolver_Lambda : public nonlinear_detail::CNonlinearSolver_Base<CSystem, CLinearSolver, CAMatrixBlockSizes, true, true> {
 public:
+//    template <int N>
+//    using MatrixN = Eigen::Matrix<double, N, N, Eigen::ColMajor>;
+//    using MatrixX = MatrixN<Eigen::Dynamic>;
+
+    typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor> MatrixX;
+
 	typedef CSystem _TySystem; /**< @brief system type */
 	typedef CLinearSolver _TyLinearSolver; /**< @brief linear solver type */
 
@@ -809,12 +819,37 @@ public:
 				mord.p_BlockOrdering(m_lambda, leoc.p_Get(m_lambda.n_BlockColumn_Num()),
 					m_lambda.n_BlockColumn_Num(), true); // constrain the last column to be the last column (a quick fix) // todo - handle this properly, will be unable to constrain like this in fast R (well, actually ...) // todo - see what is this doing to the speed
 			} else
-				mord.p_BlockOrdering(m_lambda, true); // unconstrained; the last column may be anywhere (could reuse R from the linear solver here - relevant also in batch (e.g. on venice))
+                mord.p_BlockOrdering(m_lambda, true); // unconstrained; the last column may be anywhere (could reuse R from the linear solver here - relevant also in batch (e.g. on venice))
 			const size_t *p_order = mord.p_Get_InverseOrdering();
 			CUberBlockMatrix lambda_perm;
 			m_lambda.Permute_UpperTriangular_To(lambda_perm, p_order, mord.n_Ordering_Size(), true);
-			if(!R.CholeskyOf_FBS<_TyLambdaMatrixBlockSizes>(lambda_perm))
-				throw std::runtime_error("fatal error: R.CholeskyOf_FBS<_TyLambdaMatrixBlockSizes>(lambda_perm) failed");
+			//lambda_perm.Save_MatrixMarket("debug_lambda_matrix_recovering_marginal"); // used for debugging, increases execution time
+			if (false) // matrix too big, cannot use this method to check for SPD
+            {
+			    // using same functions from g2o to check whether matrix is SPD
+                Eigen::MatrixXd eigen_dense_matrix;
+                lambda_perm.Convert_to_Dense(eigen_dense_matrix);
+                Eigen::SelfAdjointEigenSolver<MatrixX> eigenSolver;
+                std::cout << "computing eigen values:" << std::endl;
+			    eigenSolver.compute(eigen_dense_matrix, Eigen::EigenvaluesOnly);
+			    bool is_SPD = eigenSolver.eigenvalues()(0) >= 0.;
+			    std::cout << "is_SPD: " << is_SPD << std::endl;
+            }
+
+			if(!R.CholeskyOf_FBS<_TyLambdaMatrixBlockSizes>(lambda_perm)){
+                printf("debug: matrix size: " PRIsize " / " PRIsize " (" PRIsize " nnz)\n",
+                       lambda_perm.n_BlockColumn_Num(), lambda_perm.n_Column_Num(), lambda_perm.n_NonZero_Num());
+                printf("debug: lambda_matrix_n_row: " PRIsize"\n", lambda_perm.n_BlockRow_Num());
+                float f_avg_block_size = float(lambda_perm.n_Column_Num()) / lambda_perm.n_BlockColumn_Num();
+                printf("debug: diagonal nnz: " PRIsize "\n", size_t(lambda_perm.n_BlockColumn_Num() *
+                                                                    (f_avg_block_size * f_avg_block_size)));
+                printf("debug: factor size: " PRIsize " / " PRIsize " (" PRIsize " nnz)\n",
+                       R.n_BlockColumn_Num(), R.n_Column_Num(), R.n_NonZero_Num());
+                printf("debug: R_matrix_n_row: " PRIsize"\n", R.n_BlockRow_Num());
+
+                throw std::runtime_error("fatal error: R.CholeskyOf_FBS<_TyLambdaMatrixBlockSizes>(lambda_perm) failed");
+
+            }
 			// note that now the marginals are calculated with ordering: need to count with that, otherwise those are useless!
 
 			// todo - reuse what the linear solver calculated, if we have it (not if schur, )
@@ -822,13 +857,16 @@ public:
 			//		probably the whole mindset of having R is wrong, it would be much better to leave
 			//		it up to the linear solver to solve for the columns
 
-			/*printf("debug: matrix size: " PRIsize " / " PRIsize " (" PRIsize " nnz)\n",
-				lambda_perm.n_BlockColumn_Num(), lambda_perm.n_Column_Num(), lambda_perm.n_NonZero_Num());
-			float f_avg_block_size = float(lambda_perm.n_Column_Num()) / lambda_perm.n_BlockColumn_Num();
-			printf("debug: diagonal nnz: " PRIsize "\n", size_t(lambda_perm.n_BlockColumn_Num() *
-				(f_avg_block_size * f_avg_block_size)));
-			printf("debug: factor size: " PRIsize " / " PRIsize " (" PRIsize " nnz)\n",
-				R.n_BlockColumn_Num(), R.n_Column_Num(), R.n_NonZero_Num());*/
+//			printf("debug: matrix size: " PRIsize " / " PRIsize " (" PRIsize " nnz)\n",
+//				lambda_perm.n_BlockColumn_Num(), lambda_perm.n_Column_Num(), lambda_perm.n_NonZero_Num());
+//			printf("debug: lambda_matrix_n_row: " PRIsize"\n", lambda_perm.n_BlockRow_Num());
+//			float f_avg_block_size = float(lambda_perm.n_Column_Num()) / lambda_perm.n_BlockColumn_Num();
+//			printf("debug: diagonal nnz: " PRIsize "\n", size_t(lambda_perm.n_BlockColumn_Num() *
+//				(f_avg_block_size * f_avg_block_size)));
+//			printf("debug: factor size: " PRIsize " / " PRIsize " (" PRIsize " nnz)\n",
+//				R.n_BlockColumn_Num(), R.n_Column_Num(), R.n_NonZero_Num());
+//			printf("debug: R_matrix_n_row: " PRIsize"\n", R.n_BlockRow_Num());
+
 			// see how much we compute, compared to g2o
 
 			timer.Accum_DiffSample(m_f_extra_chol_time);

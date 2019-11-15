@@ -111,7 +111,7 @@ public:
                 //std::cout << "leaving if loop" << std::endl;
 
             } else{
-                fprintf(clustering_outputs, "CLUSTER %d %d %lf\n", cluster_i.begin()->first, cluster_i.begin()->second, 0.0);
+                fprintf(clustering_outputs, "CLUSTER %d %d %lf\n", cluster_i.begin()->first, cluster_i.begin()->second, 100.0);
                 fprintf(clustering_outputs, "\n");
             }
             //std::cout << "leaving for loop" << std::endl;
@@ -196,10 +196,15 @@ public:
 
         innovation_cov = joined_matrix* marginal_covariance * joined_matrix.transpose() + information.inverse();
         cov_inv = innovation_cov.inverse();
+//        std::cout << "marginal_covariance: " << marginal_covariance << std::endl;
+//        std::cout << "edge_information: " << information << std::endl;
 
         double del_obj_function = r_v_error.dot(cov_inv * r_v_error);
         //double mi_gain = log(innovation_cov.determinant() / information.inverse().determinant());// TODO_LOCAL: maybe this increases the processing time?
-
+//        std::cout << "error vector: " << r_v_error << std::endl;
+//        std::cout << "innovation_cov: " << innovation_cov << std::endl;
+//        std::cout << "cov_inv: " << cov_inv << std::endl;
+//        std::cout << "del_obj_func: "<< del_obj_function << std::endl;
         return del_obj_function;
     }
 
@@ -280,7 +285,7 @@ public:
             {
                 if (Inlier_Set.size() == 1 && Outlier_Set.size() == 1) //in this case, there is not enough evidence to believe this inlier is actually an inlier
                 {
-                    loops_score[ *Inlier_Set.begin()] = 0.0;
+                    loops_score[ *Inlier_Set.begin()] = 100.0;
                 }
                 for(IntPairSet::const_iterator ip = Outlier_Set.begin(); ip != Outlier_Set.end(); ip++)
                 {
@@ -359,7 +364,7 @@ public:
                     double evil_scale = utils::p(fabs(delta_obj), dof);  // handle negative value
                     std::cout << "edge: " << iter->p_vertex[0] << " "  << iter->p_vertex[1] << " " << evil_scale << std::endl;
 
-                    // all edges entered this function should eventually get score 0.0, but not here.
+                    // all edges entered this function should eventually get score 100.0, but not here.
                     // because their actual score will be needed later to determine their status within this cluster
                     if (first_outlier_added == true)
                     {
@@ -402,7 +407,7 @@ public:
         {
             for(IntPairDoubleMap::iterator id = loops_score.begin(); id != loops_score.end(); id++)
             {
-                id->second = 0.0; // zero all the score here
+                id->second = 100.0; // set all the score to 100.0 here, indicating it failed the first test
             }
 
             return loops_score;
@@ -425,7 +430,7 @@ public:
 
                 for(IntPairDoubleMap::iterator id = loops_score.begin(); id != loops_score.end(); id++)
                 {
-                    id->second = 0.0; // zero all the score here
+                    id->second = 100.0; // zero all the score here
                 }
                 return loops_score;
             }

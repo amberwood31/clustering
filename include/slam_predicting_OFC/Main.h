@@ -101,7 +101,7 @@ template <class CSystemType>
 bool load_graph(const char *fileName, CSystemType &system);
 
 template<class CSystemType, class CSolverType>
-bool analyze_edge_set(FILE * file_pointer, CSystemType * system, CSolverType * solver, FILE * full_analysis_file, IntPairSet& cluster, bool verbose);
+bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & solver, FILE * real_ofc_file, FILE * full_analysis_file, bool verbose);
 template<class CEdgeType, class CSolverType>
 void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverType &solver, int vertex_from, int vertex_to, FILE * full_analysis_file, double &del_obj_function);
 

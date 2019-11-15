@@ -2372,7 +2372,7 @@ bool CUberBlockMatrix::CholeskyOf_FBS(const CUberBlockMatrix &r_lambda, const st
 		const TColumn &r_col_A_j = r_lambda.m_block_cols_list[j];
 		if(!blockmatrix_detail::CUberBlockMatrix_FBS::CFBS_Cholesky<CBlockMatrixTypelist>::b_Column_Loop(r_col_A_j.n_width, j, n,
 		   m_block_cols_list, r_col_A_j, r_lambda, r_elim_tree, ereach_stack, bitfield, alloc)) {
-			printf("error: not pos def\n column %ld, %ld", j, n); // not pos def
+			printf("error: not pos def\n"); // not pos def
 			Clear(); // otherwise leaving uninit columns behind, CheckIntegrity() will yell
 			return false;
 		}

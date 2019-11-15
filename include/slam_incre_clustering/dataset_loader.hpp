@@ -145,6 +145,11 @@ public:
                                 uStr2Double(strList[14]), uStr2Double(strList[19]), uStr2Double(strList[23]), uStr2Double(strList[26]), uStr2Double(strList[28]), uStr2Double(strList[29]),
                                 uStr2Double(strList[15]), uStr2Double(strList[20]), uStr2Double(strList[24]), uStr2Double(strList[27]), uStr2Double(strList[29]), uStr2Double(strList[30]);
 
+                // debug
+//                std::cout << "AXIS_ANGLE measurement: " << axis(0) << ", " << axis(1) << ", " << axis(2) << std::endl;
+//                Eigen::Quaterniond v_quat;
+//                C3DJacobians::AxisAngle_to_Quat(axis, v_quat);
+//                std::cout << "QUAT measurement: " << v_quat.x() << ", " << v_quat.y() << ", " << v_quat.z() << ", " << v_quat.w() << std::endl;
 
                 r_edges.push_back(TEdgeData3D(vertex_from, vertex_to, measurement, information));
             }
