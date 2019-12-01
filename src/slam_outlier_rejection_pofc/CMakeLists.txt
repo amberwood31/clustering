@@ -1,10 +1,12 @@
-set(CMAKE_BUILD_TYPE Release)
+#set(CMAKE_BUILD_TYPE Release)
 
 # Set required variables.
-SET(SLAM_EXAMPLE_BINARY_NAME "slam_batch_clustering")
+SET(SLAM_EXAMPLE_BINARY_NAME "slam_outlier_rejection_pofc")
+
+SET(CMAKE_CXX_FLAGS -pg)
 
 SET(SLAM_EXAMPLE_INCLUDE_DIRS
-        ${SLAM_P_P_SOURCE_DIR}/include/slam_predicting_OFC
+        ${SLAM_P_P_SOURCE_DIR}/include/slam_outlier_rejection_pofc
         ${SLAM_P_P_SOURCE_DIR}/utilite/include)
 
 IF(SLAM_P_P_SHORT_CXSPARSE)

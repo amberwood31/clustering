@@ -3,11 +3,10 @@
 //
 int n_dummy_param = 0;
 /**< @brief a dummy parameter, used as a convenient commandline input, intended for debugging / testing */
-#include "slam_predicting_OFC/Main.h"
-#include "slam_predicting_OFC/utils.hpp"
+#include "slam_outlier_rejection_pofc/Main.h"
+#include "slam_outlier_rejection_pofc/incre_solver.hpp"
 
-#include <stdio.h> // printf
-#include <iostream>
+#include <stdio.h> // fprintf
 #ifdef _OPENMP
 #include <omp.h>
 #endif // _OPENMP
@@ -23,145 +22,115 @@ int n_dummy_param = 0;
  */
 int main(int UNUSED(n_arg_num), const char **UNUSED(p_arg_list))
 {
-    DisplaySwitches();
-    double start, end;
-    CTimer t;
-    start = t.f_Time();
 
+    DisplaySwitches();
+    CTimer t;
+    double start, end;
+
+    // parse commandline
     TCommandLineArgs t_cmd_args;
     t_cmd_args.Defaults(); // set defaults
     if(!t_cmd_args.Parse(n_arg_num, p_arg_list))
         return -1;
-    // parse commandline
 
-
+    // display commandline
     if(t_cmd_args.b_show_commandline) {
         printf("> ./SLAM_plus_plus");
         for(int i = 1; i < n_arg_num; ++ i)
             printf(" %s", p_arg_list[i]);
         printf("\n");
     }
-    // display commandline
 
+    // see if the input is there;
     {
-
         FILE *p_fr;
-        /*
         if((p_fr = fopen(t_cmd_args.p_s_input_file, "rb")))
             fclose(p_fr);
         else {
             fprintf(stderr, "error: can't open input file \'%s\'\n", t_cmd_args.p_s_input_file);
             return -1;
         }
-        if((p_fr = fopen(t_cmd_args.p_s_inlier_file, "rb")))
-            fclose(p_fr);
-        else {
-            fprintf(stderr, "error: can't open inlier file \'%s\'\n", t_cmd_args.p_s_inlier_file);
-            return -1;
-        }
-         */
-        if((p_fr = fopen(t_cmd_args.p_s_outlier_file, "rb")))
-            fclose(p_fr);
-        else {
-            fprintf(stderr, "error: can't open outlier file \'%s\'\n", t_cmd_args.p_s_outlier_file);
-            return -1;
-        }
-    }
-    // see if the input is there; otherwise will get some misleading errors about peek-parsing
-    // and potentially about SE(2) (or other default solver) being disabled (if unlucky)
-
-    if(t_cmd_args.b_use_old_system) {
-        fprintf(stderr, "error: the legacy solver was not compiled\n");
-        return -1;
-    } else {
     }
 
+    // load edges and spatial clustering
+    IntPairSet loops;
+    bool graph_2d = LoadLoopClosures(t_cmd_args.p_s_input_file, loops);
 
+    const char *clustering_output_file = "full_analysis.txt";
+    start = t.f_Time();
 
-    //typedef CLinearSolver_CholMod CLinearSolverType; // or cholmod
+    // the incremental cluster analysis starts from here
+    if (graph_2d)
+    {
+        Incre_Solver<true> incremental_solver;
+        incremental_solver.analyze_cluster(t_cmd_args.p_s_input_file, t_cmd_args.f_chi2_dif_test_threshold, clustering_output_file);
+    } else{
+        Incre_Solver<false> incremental_solver;
+        incremental_solver.analyze_cluster(t_cmd_args.p_s_input_file, t_cmd_args.f_chi2_dif_test_threshold, clustering_output_file);
 
-    CSystemType system;
-    TIncrementalSolveSetting t_incremental_config = TIncrementalSolveSetting();
-    TMarginalsComputationPolicy t_marginals_config = TMarginalsComputationPolicy( true, frequency::Never(), EBlockMatrixPart(mpart_LastColumn + mpart_Diagonal), EBlockMatrixPart(mpart_LastColumn + mpart_Diagonal), mpart_Nothing);
+    }
 
-    CNonlinearSolver_Lambda<CSystemType, CLinearSolverType> solver(system, t_incremental_config, t_marginals_config, t_cmd_args.b_verbose);
-
-    /*
-    std::string file_path = "/home/amber/SLAM_plus_plus_v2.30/slam/data/manhattan_odometry.g2o";
-    if(t_cmd_args.b_verbose)
-        fprintf(stderr, "Loading graph\n");
-    load_graph(t_cmd_args.p_s_input_file, system);
-    system.Plot2D("resultUnoptim.tga", plot_quality::plot_Printing); // plot in print quality
-
-    if(t_cmd_args.b_verbose)
-        fprintf(stderr, "Optimizing\n");
-    solver.Optimize();
-    // optimize the system
-
-    solver.r_MarginalCovariance().Dump_Diagonal();
-    system.Plot2D("result.tga", plot_quality::plot_Printing); // plot in print quality
-*/
-    std::string outlier_file = "/home/amber/SLAM_plus_plus_v2.30/slam/data/outlier.g2o";
-    FILE * file = 0;
-    file = fopen(t_cmd_args.p_s_outlier_file, "r");
-
-    const char *save_file_name = "outlier_analysis.txt";
-    FILE * save_file = fopen(save_file_name, "w");
-
-    const char *real_ofc_name = "real_ofc.txt";
-    FILE * real_ofc_file = fopen(real_ofc_name, "w");
-
-    const char *full_analysis_name = "full_analysis.txt";
-    FILE * full_analysis_file = fopen(full_analysis_name, "w");
-
-
-    if(file){
-        analyze_edge_set(file, system, solver, 1, save_file, real_ofc_file, full_analysis_file, t_cmd_args.b_verbose);
-
-    }// load one outlier and predict the objective function change
-    fclose(file);
-    fclose(save_file);
-    fclose(real_ofc_file);
-    fclose(full_analysis_file);
-
-    end= t.f_Time();
-    printf("\nthe whole process took %f sec\n", end-start);
-
-    system.Plot2D("result.tga", plot_quality::plot_Printing); // plot in print quality
-/*
-    std::string inlier_file = "/home/amber/SLAM_plus_plus_v2.30/slam/data/inlier.g2o";
-    file = 0;
-    file = fopen(t_cmd_args.p_s_inlier_file, "r");
-
-    save_file_name = "inlier_analysis.txt";
-    save_file = fopen(save_file_name, "w");
-    if(file){
-
-        analyze_edge_set(file, system, solver, 0, save_file);
-
-    }// load one outlier and predict the objective function change
-    fclose(file);
-    fclose(save_file);
-    */
-
-
-    solver.Dump(); // show some stats
+    end = t.f_Time();
+    double f_time = end - start;
+    printf("\nwhole solving took " PRItimeprecise " (%f sec)\n", PRItimeparams(f_time), f_time);
 
     return 0;
 }
 
+bool LoadLoopClosures(const char* file_name, IntPairSet& loops)
+{
+    std::cout << "LoadLoopClosures CALLED" << std::endl;
+    FILE * file = fopen(file_name, "r");
+    char line[400];
+    bool graph_2d;
+    std::string edge_2d_signature("EDGE_SE2");
+    std::string edge_3d_signature("EDGE_SE3:QUAT");
+    while ( fgets (line , 400 , file) != NULL )
+    {
+        std::vector<std::string> strList = uListToVector(uSplit(uReplaceChar(line, '\n', ' '), ' '));
+        if(strList.size() == 31 && strList[0] == edge_3d_signature)
+        {
+            //EDGE_SE3:QUAT
+            graph_2d = false;
+            int vertex_from = atoi(strList[1].c_str());
+            int vertex_to = atoi(strList[2].c_str());
+
+            //if (strList[0] == 3d_ed
+            if ((vertex_to - vertex_from) != 1)
+            {
+                loops.insert(IntPair(vertex_from, vertex_to));
+            }
+
+        }
+        else if(strList.size() == 12 && strList[0] == edge_2d_signature)
+        {
+            //EDGE_SE2
+            graph_2d = true;
+            int vertex_from = atoi(strList[1].c_str());
+            int vertex_to = atoi(strList[2].c_str());
+
+            if ((vertex_to - vertex_from) != 1) // if reached loop closure edge
+            {
+                loops.insert(IntPair(vertex_from, vertex_to));
+            }
+
+        }
+        else if(strList.size())
+        {
+            fprintf(stderr, "Load_loop_closures: Error parsing graph file");
+        }
+    }
+    fclose(file);
+
+    return graph_2d;
+
+
+
+}
 
 
 void TCommandLineArgs::Defaults()
 {
-    n_solver_choice = nlsolver_Lambda; /**< @brief nonlinear solver selector */
-    // solver selection
-
-    b_write_bitmaps = true;
-    b_write_solution = true;
-    b_xz_plots = false;
-    b_write_system_matrix = false;
-    b_no_show = false;
     b_show_commandline = true;
     b_show_flags = true;
     b_show_detailed_timing = true;
@@ -170,16 +139,15 @@ void TCommandLineArgs::Defaults()
 
     b_use_schur = false;
 
-    b_run_matrix_benchmarks = false;
-    b_run_matrix_unit_tests = false;
     b_use_old_system = false; // t_odo - make this commandline
     b_pose_only = false;
     b_use_SE3 = false; // note this is not overriden in commandline but detected in peek-parsing
 
     p_s_input_file = 0; /** <@brief path to the data file */
-    p_s_inlier_file = 0; /** <@brief path to the inlier file */
-    p_s_outlier_file = 0; /** <@brief path to the outlier file */
     n_max_lines_to_process = 0; /** <@brief maximal number of lines to process */
+    n_spatial_clustering_threshold = 50;
+    f_chi2_dif_test_threshold = 0.95;
+
 
     n_linear_solve_each_n_steps = 0; /**< @brief linear solve period, in steps (0 means disabled) */
     n_nonlinear_solve_each_n_steps = 0; /**< @brief nonlinear solve period, in steps (0 means disabled) */
@@ -189,13 +157,9 @@ void TCommandLineArgs::Defaults()
     f_final_optimization_threshold = 0.01;
     // optimization mode for slam
 
-    p_s_bench_name = 0;
-    p_s_bench_type = "all";
 
     n_omp_threads = size_t(-1);
     b_omp_dynamic = false;
-
-    b_do_marginals = false;
 
 }
 
@@ -269,363 +233,6 @@ void PrintHelp()
            "                  is nonzero, disables if zero (disabled by default)\n");
 }
 
-template <class CSystemType>
-bool load_graph(const char *fileName, CSystemType &system){
-
-    FILE * file = 0;
-    file = fopen(fileName, "r");
-
-    if(file)
-    {
-        char line[400];
-        while ( fgets (line , 400 , file) != NULL )
-        {
-            std::vector<std::string> strList = uListToVector(uSplit(uReplaceChar(line, '\n', ' '), ' '));
-            if(strList.size() == 9)
-            {
-                //VERTEX_SE3:QUAT
-
-            }
-            else if(strList.size() == 5)
-            {
-                //VERTEX_SE2
-
-            }
-            else if(strList.size() == 30)
-            {
-                //EDGE_SE3:QUAT
-                /*int idFrom = atoi(strList[1].c_str());
-                int idTo = atoi(strList[2].c_str());
-                float x = uStr2Float(strList[3]);
-                float y = uStr2Float(strList[4]);
-                float z = uStr2Float(strList[5]);
-                float roll = uStr2Float(strList[6]);
-                float pitch = uStr2Float(strList[7]);
-                float yaw = uStr2Float(strList[8]);
-                Eigen::Matrix<double, 6, 1> edge;
-                edge << x, y, z, roll, pitch, yaw;
-
-                system.r_Add_Edge(CEdgePose3D(idFrom, idTo, edge, information, system));
-                 */
-            }
-            else if(strList.size() == 12)
-            {
-                //EDGE_SE2
-                int idFrom = atoi(strList[1].c_str());
-                int idTo = atoi(strList[2].c_str());
-                float x = uStr2Double(strList[3]);
-                float y = uStr2Double(strList[4]);
-                float rot = uStr2Double(strList[5]);
-
-                Eigen::Matrix3d information;
-                information << uStr2Double(strList[6]), uStr2Double(strList[7]), uStr2Double(strList[8]),
-                                uStr2Double(strList[7]), uStr2Double(strList[9]), uStr2Double(strList[10]),
-                                uStr2Double(strList[8]), uStr2Double(strList[10]), uStr2Double(strList[11]);
-
-                system.r_Add_Edge(CEdgePose2D(idFrom, idTo, Eigen::Vector3d(x, y, rot), information, system));
-            }
-            else if(strList.size())
-            {
-                fprintf(stderr, "Error parsing graph file %s on line \"%s\" (strList.size()=%d)", fileName, line, (int)strList.size());
-            }
-        }
-
-        fclose(file);
-    }
-    else
-    {
-        fprintf(stderr, "Cannot open file %s", fileName);
-        return false;
-    }
-    return true;
-
-}
-
-void zero_offdiagonal(Eigen::MatrixXd &square_mat, int mat_size)
-{
-    for (int i=0; i < mat_size; i++)
-    {
-        for (int j=0;  j< mat_size; j++)
-        {
-            if (i!=j)
-                square_mat(i, j) = 0.0;
-        }
-
-    }
-
-
-}
-
-template<class CEdgeType, class CSolverType>
-void calculate_ofc( CEdgeType &new_edge, Eigen::MatrixXd &information, CSolverType &solver, int vertex_from, int vertex_to, FILE * full_analysis_file, double &del_obj_function, double &mi_gain)
-{
-    Eigen::Matrix3d r_t_jacobian0, r_t_jacobian1, cov_inv, innovation_cov;
-    Eigen::Vector3d r_v_expectation, r_v_error;
-    new_edge.Calculate_Jacobians_Expectation_Error(r_t_jacobian0, r_t_jacobian1, r_v_expectation,r_v_error);
-    // optimize the system
-
-    Eigen::MatrixXd joined_matrix(3,6);
-    joined_matrix << - r_t_jacobian0, - r_t_jacobian1;
-    Eigen::MatrixXd marginal_covariance(6,6);
-    Eigen::Matrix3d covariance_idfrom_zero_offdiagonal, covariance_idto_zero_offdiagonal, identity_block, zero_block;
-    covariance_idfrom_zero_offdiagonal <<   0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0;
-    covariance_idto_zero_offdiagonal <<   0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0;
-    zero_block <<   0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0;
-
-    Eigen::MatrixXd covariance_idfrom(3,3), covariance_idto(3,3), covariance_idtofrom(3,3), covariance_idfromto(3,3);
-    solver.r_MarginalCovariance().save_Diagonal(covariance_idfrom, vertex_from, vertex_from);
-    solver.r_MarginalCovariance().save_Diagonal(covariance_idto, vertex_to, vertex_to);
-    if (vertex_from > vertex_to)
-    {
-        solver.r_MarginalCovariance().save_Diagonal(covariance_idfromto, vertex_from, vertex_to);
-        marginal_covariance << covariance_idfrom, covariance_idfromto, covariance_idfromto.transpose(), covariance_idto;
-    } else{
-        solver.r_MarginalCovariance().save_Diagonal(covariance_idfromto, vertex_to, vertex_from);
-        marginal_covariance << covariance_idfrom, covariance_idfromto.transpose(), covariance_idfromto, covariance_idto;
-
-    }
-    innovation_cov = joined_matrix* marginal_covariance * joined_matrix.transpose() + information.inverse();
-    cov_inv = innovation_cov.inverse();
-
-    //std::cout << "transform norm:  " << r_v_error.norm() << std::endl;
-    //std::cout << "information norm: " << cov_inv.norm() << std::endl;
-
-    del_obj_function = r_v_error.dot(cov_inv * r_v_error);
-    mi_gain = log(innovation_cov.determinant() / information.inverse().determinant());
-    fprintf(full_analysis_file, "%d %d %f %f %f %f\n", vertex_from, vertex_to, r_v_error.norm(), cov_inv.norm(), del_obj_function, mi_gain);
-
-
-
-
-}
-
-
-/**
- * Split a string into multiple string around the specified separator.
- * Example:
- * @code
- * 		std::list<std::string> v = split("Hello the world!", ' ');
- * @endcode
- * The list v will contain {"Hello", "the", "world!"}
- * @param str the string
- * @param separator the separator character
- * @return the list of strings
- */
-std::list<std::string> uSplit(const std::string & str, char separator)
-{
-    std::list<std::string> v;
-    std::string buf;
-    for(unsigned int i=0; i<str.size(); ++i)
-    {
-        if(str[i] != separator)
-        {
-            buf += str[i];
-        }
-        else if(buf.size())
-        {
-            v.push_back(buf);
-            buf = "";
-        }
-    }
-    if(buf.size())
-    {
-        v.push_back(buf);
-    }
-    return v;
-}
-
-/**
- * Convert a std::list to a std::vector.
- * @param list the list
- * @return the vector
- */
-template<class V>
-std::vector<V> uListToVector(const std::list<V> & list)
-{
-    return std::vector<V>(list.begin(), list.end());
-}
-
-std::string uReplaceChar(const std::string & str, char before, char after)
-{
-    std::string result = str;
-    for(unsigned int i=0; i<result.size(); ++i)
-    {
-        if(result[i] == before)
-        {
-            result[i] = after;
-        }
-    }
-    return result;
-}
-
-
-double uStr2Double(const std::string & str)
-{
-    double value = 0.0;
-    std::istringstream istr(uReplaceChar(str, ',', '.').c_str());
-    istr.imbue(std::locale("C"));
-    istr >> value;
-    return value;
-}
-
-template<class CSystemType, class CSolverType>
-bool analyze_edge_set(FILE * file_pointer, CSystemType &system, CSolverType & solver, int edge_nature, FILE * save_file, FILE * real_ofc_file, FILE * full_analysis_file, bool verbose)
-{
-    CTimer t;
-    double f_time_before, f_time_after;
-
-    char line[400];
-    while ( fgets (line , 400 , file_pointer) != NULL )
-    {
-        f_time_before = t.f_Time();
-        std::vector<std::string> strList = uListToVector(uSplit(uReplaceChar(line, '\n', ' '), ' '));
-        if(strList.size() == 30)
-        {
-            //EDGE_SE3:QUAT
-            /*int idFrom = atoi(strList[1].c_str());
-            int idTo = atoi(strList[2].c_str());
-            float x = uStr2Float(strList[3]);
-            float y = uStr2Float(strList[4]);
-            float z = uStr2Float(strList[5]);
-            float roll = uStr2Float(strList[6]);
-            float pitch = uStr2Float(strList[7]);
-            float yaw = uStr2Float(strList[8]);
-            Eigen::Matrix<double, 6, 1> edge;
-            edge << x, y, z, roll, pitch, yaw;
-
-            system.r_Add_Edge(CEdgePose3D(idFrom, idTo, edge, information, system));
-             */
-        }
-        else if(strList.size() == 12)
-        {
-            //EDGE_SE2
-            int vertex_from = atoi(strList[1].c_str());
-            int vertex_to = atoi(strList[2].c_str());
-            double x = uStr2Double(strList[3]);
-            double y = uStr2Double(strList[4]);
-            double rot = uStr2Double(strList[5]);
-
-            Eigen::MatrixXd information(3,3);
-            information << uStr2Double(strList[6]), uStr2Double(strList[7]), uStr2Double(strList[8]),
-                uStr2Double(strList[7]), uStr2Double(strList[9]), uStr2Double(strList[10]),
-                uStr2Double(strList[8]), uStr2Double(strList[10]), uStr2Double(strList[11]);
-
-            CEdgePose2D new_edge;
-            new_edge = CEdgePose2D(vertex_from, vertex_to, Eigen::Vector3d(x, y, rot), information, system);
-
-            if ((vertex_to - vertex_from) != 1) // if reached loop closure edge
-            {
-
-                solver.Optimize(5, 1e-5);
-
-                double before = solver.get_residual_chi2_error();
-
-                double delta_obj, mi_gain;
-                calculate_ofc(new_edge, information, solver, vertex_from, vertex_to, full_analysis_file, delta_obj, mi_gain);
-                fprintf(save_file, "%d %d %f\n", vertex_from, vertex_to, delta_obj);
-                if (edge_nature == 1)
-                {
-                    //std::cout << "OFC due to outlier: " << delta_obj << std::endl;
-                    //std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
-                }
-                else if (edge_nature == 0)
-                {
-                    //std::cout << "OFC due to inlier: " << delta_obj << std::endl;
-                    //std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
-                }
-
-                {   // use chi2 difference test
-                    int dof = 2 * 1; // difference between previous iteration, instead of the current dof
-                    // multiplied by 2 in 2D cases
-
-                    if (delta_obj < utils::chi2(dof))
-                    {
-                        std::cout << "edge: " << vertex_from << " "  << vertex_to << std::endl;
-                        system.r_Add_Edge(new_edge);
-                        if (verbose == true)
-                        {
-                            std::cout << "ofc: " << delta_obj << std::endl;
-                            //std::cout << "mi: " << mi_gain << std::endl;
-                            f_time_after= t.f_Time();
-                            printf("this iteration took %f sec\n", f_time_after-f_time_before);
-
-                        }
-
-                    }
-                    else
-                    {
-                        double evil_scale = utils::p(delta_obj, dof);
-                        std::cout << " " << std::endl; // add empty line to indicate clustering
-                        std::cout << "edge: " << vertex_from << " "  << vertex_to << " " << evil_scale << std::endl;
-
-                        if (verbose == true)
-                        {
-                            std::cout << "ofc: " << delta_obj << std::endl;
-                            //std::cout << "mi: " << mi_gain << std::endl;
-
-                            //std::cout << "inverse check p: " << utils::p(delta_obj, dof) << std::endl;
-                            //std::cout << "clearing all existing LC edges" << std::endl;
-
-                            f_time_after= t.f_Time();
-                            printf("this iteration took %f sec\n", f_time_after-f_time_before);
-
-                        }
-                        std::cout << " " << std::endl; // add empty line to indicate clustering
-                        //std::cout << "inverse check p: " << utils::p(delta_obj, dof) << std::endl;
-                        //std::cout << "clearing all existing LC edges" << std::endl;
-                        double f_time_after = t.f_Time();
-                        double f_time = f_time_after - f_time_before;
-                        //printf("\nwhole solving took " PRItimeprecise " (%f sec)\n", PRItimeparams(f_time), f_time);
-                        //printf("\nnumber of edges: %ld\n", system->n_Edge_Num());
-                        /*printf("solver spent %f seconds in marginals\n"
-                               "\t chol: %f\n"
-                               "\tmargs: %f\n"
-                               "\t incm: %f (ran " PRIsize " times)\n",
-                               solver->m_f_extra_chol_time + solver->m_f_marginals_time + solver->m_f_incmarginals_time,
-                               solver->m_f_extra_chol_time, solver->m_f_marginals_time,
-                               solver->m_f_incmarginals_time, solver->m_n_incmarginals_num);*/
-                    }
-                }
-
-
-                //solver.Optimize(5, 1e-5);
-                double after = solver.get_residual_chi2_error();
-                //solver.Optimize(5, 1e-5);
-                //std::cout << "difference: " << after-before << std::endl;
-                //std::cout << "difference: " << solver.get_residual_error()- before << std::endl;
-
-
-            }
-            else{
-                system.r_Add_Edge(new_edge); // adding all odometry edges
-                if (verbose == true)
-                {
-                    f_time_after= t.f_Time();
-                    std::cout<<"added OD edge, not solved!";
-                    printf("\nthis iteration took %f sec\n", f_time_after-f_time_before);
-
-                }
-            }
-
-        }
-        else if(strList.size())
-        {
-            fprintf(stderr, "Error parsing graph file");
-        }
-    }
-
-    if (verbose == true)
-        std::cout << "number of edges: " << system.n_Edge_Num() << std::endl;
-
-}
-
-
 
 
 
@@ -642,52 +249,21 @@ bool TCommandLineArgs::Parse(int n_arg_num, const char **p_arg_list)
             b_verbose = false;
         else if(!strcmp(p_arg_list[i], "--use-schur") || !strcmp(p_arg_list[i], "-us"))
             b_use_schur = true;
-        else if(!strcmp(p_arg_list[i], "--no-show") || !strcmp(p_arg_list[i], "-ns"))
-            b_no_show = true;
         else if(!strcmp(p_arg_list[i], "--no-commandline") || !strcmp(p_arg_list[i], "-nc"))
             b_show_commandline = false;
-        else if(!strcmp(p_arg_list[i], "--do-marginals") || !strcmp(p_arg_list[i], "-dm"))
-            b_do_marginals = true;
-        else if(!strcmp(p_arg_list[i], "--lambda") || !strcmp(p_arg_list[i], "-,\\"))
-            n_solver_choice = nlsolver_Lambda;
-        else if(!strcmp(p_arg_list[i], "--lambda-lm") || !strcmp(p_arg_list[i], "-,\\lm"))
-            n_solver_choice = nlsolver_LambdaLM;
-        else if(!strcmp(p_arg_list[i], "--lambda-dl") || !strcmp(p_arg_list[i], "-,\\dl"))
-            n_solver_choice = nlsolver_LambdaDL;
         else if(!strcmp(p_arg_list[i], "--no-flags") || !strcmp(p_arg_list[i], "-nf"))
             b_show_flags = false;
-        else if(!strcmp(p_arg_list[i], "--run-matrix-unit-tests") || !strcmp(p_arg_list[i], "-rmut"))
-            b_run_matrix_unit_tests = true;
         else if(!strcmp(p_arg_list[i], "--no-detailed-timing") || !strcmp(p_arg_list[i], "-ndt"))
             b_show_detailed_timing = false;
         else if(!strcmp(p_arg_list[i], "--use-old-code") || !strcmp(p_arg_list[i], "-uogc"))
             b_use_old_system = true;
-        else if(!strcmp(p_arg_list[i], "--dump-system-matrix") || !strcmp(p_arg_list[i], "-dsm"))
-            b_write_system_matrix = true;
-        else if(!strcmp(p_arg_list[i], "--no-bitmaps") || !strcmp(p_arg_list[i], "-nb")) {
-            b_write_bitmaps = false;
-            b_no_show = true; // no bitmaps ... what can it show?
-        } else if(!strcmp(p_arg_list[i], "--no-solution") || !strcmp(p_arg_list[i], "-ns"))
-            b_write_solution = false;
-        else if(!strcmp(p_arg_list[i], "--xz-plots") || !strcmp(p_arg_list[i], "-xz"))
-            b_xz_plots = true;
         else if(!strcmp(p_arg_list[i], "--pose-only") || !strcmp(p_arg_list[i], "-po"))
             b_pose_only = true;
-        else if(!strcmp(p_arg_list[i], "--a-solver") || !strcmp(p_arg_list[i], "-A"))
-            n_solver_choice = nlsolver_A;
-        else if(!strcmp(p_arg_list[i], "--l-solver") || !strcmp(p_arg_list[i], "-L"))
-            n_solver_choice = nlsolver_L;
-        else if(!strcmp(p_arg_list[i], "--fast-l") || !strcmp(p_arg_list[i], "-fL"))
-            n_solver_choice = nlsolver_FastL;
         else if(i + 1 == n_arg_num) {
             fprintf(stderr, "error: argument \'%s\': missing value or an unknown argument\n", p_arg_list[i]);
             return false;
         } else if(!strcmp(p_arg_list[i], "--infile") || !strcmp(p_arg_list[i], "-i"))
             p_s_input_file = p_arg_list[++ i];
-        else if(!strcmp(p_arg_list[i], "-in"))
-            p_s_inlier_file = p_arg_list[++ i];
-        else if(!strcmp(p_arg_list[i], "-ou"))
-            p_s_outlier_file = p_arg_list[++ i];
         else if(!strcmp(p_arg_list[i], "--parse-lines-limit") || !strcmp(p_arg_list[i], "-pll"))
             n_max_lines_to_process = atol(p_arg_list[++ i]);
         else if(!strcmp(p_arg_list[i], "--linear-solve-period") || !strcmp(p_arg_list[i], "-lsp"))
@@ -696,8 +272,12 @@ bool TCommandLineArgs::Parse(int n_arg_num, const char **p_arg_list)
             n_nonlinear_solve_each_n_steps = atol(p_arg_list[++ i]);
         else if(!strcmp(p_arg_list[i], "--max-nonlinear-solve-iters") || !strcmp(p_arg_list[i], "-mnsi"))
             n_max_nonlinear_solve_iteration_num = atol(p_arg_list[++ i]);
+        else if(!strcmp(p_arg_list[i], "--n_spatial_clustering_threshold") || !strcmp(p_arg_list[i], "-cs"))
+            n_spatial_clustering_threshold = atol(p_arg_list[++ i]);
         else if(!strcmp(p_arg_list[i], "--nonlinear-solve-error-thresh") || !strcmp(p_arg_list[i], "-nset"))
             f_nonlinear_solve_error_threshold = atof(p_arg_list[++ i]);
+        else if(!strcmp(p_arg_list[i], "--chi2_difference_test_threshold") || !strcmp(p_arg_list[i], "-cdtt"))
+            f_chi2_dif_test_threshold = atof(p_arg_list[++ i]);
         else if(!strcmp(p_arg_list[i], "--max-final-nonlinear-solve-iters") || !strcmp(p_arg_list[i], "-mfnsi"))
             n_max_final_optimization_iteration_num = atol(p_arg_list[++ i]);
         else if(!strcmp(p_arg_list[i], "--final-nonlinear-solve-error-thresh") || !strcmp(p_arg_list[i], "-fnset"))
@@ -706,21 +286,7 @@ bool TCommandLineArgs::Parse(int n_arg_num, const char **p_arg_list)
             n_omp_threads = atol(p_arg_list[++ i]);
         else if(!strcmp(p_arg_list[i], "--omp-set-dynamic"))
             b_omp_dynamic = (atol(p_arg_list[++ i]) != 0);
-        else if(!strcmp(p_arg_list[i], "--run-matrix-benchmarks") || !strcmp(p_arg_list[i], "-rmb")) {
-            if(i + 2 >= n_arg_num) {
-                fprintf(stderr, "error: argument \'%s\': missing the second value\n", p_arg_list[i]);
-                return false;
-            }
-            b_run_matrix_benchmarks = true;
-            p_s_bench_name = p_arg_list[++ i];
-            p_s_bench_type = p_arg_list[++ i];
-            if(strcmp(p_s_bench_type, "alloc") &&
-               strcmp(p_s_bench_type, "factor") &&
-               strcmp(p_s_bench_type, "all")) {
-                fprintf(stderr, "error: argument \'%s\': unknown benchmark type\n", p_arg_list[i]);
-                return false;
-            }
-        } else if(!strcmp(p_arg_list[i], "--dummy-param") || !strcmp(p_arg_list[i], "-dp"))
+        else if(!strcmp(p_arg_list[i], "--dummy-param") || !strcmp(p_arg_list[i], "-dp"))
             n_dummy_param = atol(p_arg_list[++ i]);
         else {
             fprintf(stderr, "error: argument \'%s\': an unknown argument\n", p_arg_list[i]);
