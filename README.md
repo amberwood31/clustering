@@ -1,6 +1,8 @@
-Cluster-based Penalty Scaling for Robust Pose Graph Optimization
+Clustering based on predicted objective function change and chi2 difference test
 =======
 
+This work is implemented within SLAM++ framework (the incremental optimizer, not semantic SLAM).
+https://journals.sagepub.com/doi/abs/10.1177/0278364917691110
 ### To Use:
 
 ```
